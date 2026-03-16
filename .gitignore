@@ -8,3 +8,4 @@ osint_platform.db
 dist/
 build/
 .env
+build_windows_exe.log

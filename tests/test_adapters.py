@@ -239,3 +239,56 @@ class TestMetadataAdapter:
         assert len(findings) >= 2
         for f in findings:
             assert f.finding_type == FindingType.METADATA
+
+    async def test_run_url_includes_ytdlp_metadata_when_available(self):
+        class FakeResponse:
+            def __init__(self, url, status_code, headers=None, text=""):
+                self.url = url
+                self.status_code = status_code
+                self.headers = headers or {}
+                self.text = text
+
+            def raise_for_status(self):
+                return None
+
+        class FakeClient:
+            def __init__(self, *args, **kwargs):
+                pass
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return None
+
+            async def get(self, url):
+                return FakeResponse(
+                    url,
+                    200,
+                    headers={"content-type": "text/html"},
+                    text="<html><title>video</title></html>",
+                )
+
+        import app.core.adapters.metadata_adapter as metadata_module
+
+        original_client = metadata_module.httpx.AsyncClient
+        metadata_module.httpx.AsyncClient = FakeClient
+        adapter = MetadataAdapter()
+
+        async def fake_media(_url):
+            return {
+                "platform": "youtube",
+                "title": "Test Video",
+                "uploader": "collector",
+                "view_count": 123,
+            }
+
+        adapter._extract_media_metadata = fake_media
+
+        t = _make_target(TargetType.URL, "https://www.youtube.com/watch?v=abc123")
+        try:
+            findings = await adapter.run(t)
+            titles = {finding.title for finding in findings}
+            assert "Media Platform Metadata (yt-dlp)" in titles
+        finally:
+            metadata_module.httpx.AsyncClient = original_client

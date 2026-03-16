@@ -59,7 +59,7 @@ Sprint 9 live collection uplift:
 - built-in DNS adapter now performs DNS-over-HTTPS lookups against live domains
 - HTTP adapter now fingerprints real responses, headers, redirects, and common discovery paths
 - certificate and subdomain adapters now use live TLS handshakes and certificate transparency data
-- metadata adapter now extracts real filesystem or URL metadata instead of fabricated values
+- metadata adapter now extracts real filesystem or URL metadata and enriches media URLs via yt-dlp
 - social adapter now verifies public profiles through platform endpoints rather than generating placeholder accounts
 - breach provider now supports first-class Have I Been Pwned (HIBP) email breach collection
 - entity research providers no longer fabricate fallback evidence when upstream providers are absent
@@ -110,6 +110,22 @@ pip install -r requirements.txt
 ```bash
 python app/main.py
 ```
+
+### Build Windows executable (download-and-run)
+
+```powershell
+./scripts/build_windows_exe.ps1
+```
+
+Build output:
+- `dist/OSINTResearchPlatform.exe`
+- `dist/OSINTResearchPlatform-windows-x64.zip`
+
+Distribute `OSINTResearchPlatform-windows-x64.zip`. A user can download, unzip, and run `OSINTResearchPlatform.exe` directly.
+
+For automated downloadable artifacts, use the GitHub Actions workflow:
+- `.github/workflows/build-windows-exe.yml`
+- run manually via `workflow_dispatch` or by pushing a `v*` tag.
 
 ### Run tests
 

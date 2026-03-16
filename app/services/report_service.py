@@ -1,5 +1,6 @@
 import csv
 import json
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -12,12 +13,21 @@ from app.services.timeline_service import TimelineService
 
 class ReportService:
     def __init__(self):
-        templates_dir = Path(__file__).parent.parent / "reports" / "templates"
+        templates_dir = self._resolve_templates_dir()
         self.env = Environment(
             loader=FileSystemLoader(str(templates_dir)),
             autoescape=select_autoescape(["html", "j2"]),
         )
         self.timeline_service = TimelineService()
+
+    @staticmethod
+    def _resolve_templates_dir() -> Path:
+        if getattr(sys, "frozen", False):
+            base_path = Path(getattr(sys, "_MEIPASS", Path.cwd()))
+            frozen_path = base_path / "app" / "reports" / "templates"
+            if frozen_path.exists():
+                return frozen_path
+        return Path(__file__).parent.parent / "reports" / "templates"
 
     def generate_html(self, case: Case, output_path: str) -> None:
         template = self.env.get_template("report.html.j2")

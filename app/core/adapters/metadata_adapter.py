@@ -1,3 +1,4 @@
+import asyncio
 import mimetypes
 import os
 import re
@@ -106,7 +107,75 @@ class MetadataAdapter(BaseAdapter):
                     source_url=str(response.url),
                 )
             )
+
+        media_metadata = await self._extract_media_metadata(str(response.url))
+        if media_metadata:
+            findings.append(
+                Finding(
+                    target_id=target.id,
+                    adapter_name=self.name,
+                    finding_type=FindingType.METADATA,
+                    title="Media Platform Metadata (yt-dlp)",
+                    description=f"Extracted media-platform metadata via yt-dlp for {response.url}",
+                    data=media_metadata,
+                    severity=Severity.LOW,
+                    source_name="yt-dlp",
+                    source_url=str(response.url),
+                )
+            )
         return findings
+
+    async def _extract_media_metadata(self, url: str) -> dict | None:
+        try:
+            return await asyncio.to_thread(self._run_ytdlp_extract, url)
+        except Exception:
+            return None
+
+    @staticmethod
+    def _run_ytdlp_extract(url: str) -> dict | None:
+        try:
+            import yt_dlp
+        except ImportError:
+            return None
+
+        options = {
+            "quiet": True,
+            "no_warnings": True,
+            "skip_download": True,
+        }
+        with yt_dlp.YoutubeDL(options) as ydl:
+            info = ydl.extract_info(url, download=False)
+
+        if not isinstance(info, dict) or not info:
+            return None
+
+        metadata = {
+            "platform": info.get("extractor") or info.get("extractor_key", ""),
+            "extractor_key": info.get("extractor_key", ""),
+            "webpage_url": info.get("webpage_url") or url,
+            "title": info.get("title", ""),
+            "uploader": info.get("uploader", ""),
+            "channel": info.get("channel", ""),
+            "upload_date": info.get("upload_date", ""),
+            "duration_seconds": info.get("duration", 0),
+            "view_count": info.get("view_count", 0),
+            "like_count": info.get("like_count", 0),
+            "comment_count": info.get("comment_count", 0),
+            "availability": info.get("availability", ""),
+            "live_status": info.get("live_status", ""),
+            "tags": info.get("tags") or [],
+            "categories": info.get("categories") or [],
+            "thumbnail": info.get("thumbnail", ""),
+        }
+
+        if isinstance(info.get("formats"), list):
+            metadata["format_count"] = len(info["formats"])
+
+        if info.get("_type") == "playlist":
+            entries = info.get("entries") or []
+            metadata["entry_count"] = len(entries)
+
+        return metadata
 
     @staticmethod
     def _extract_html_title(body: str) -> str:

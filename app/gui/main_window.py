@@ -31,6 +31,7 @@ from app.gui.entity_research_panel import EntityResearchPanel
 from app.gui.findings_panel import FindingsPanel
 from app.gui.graph_panel import GraphPanel
 from app.gui.lead_workspace_panel import LeadWorkspacePanel
+from app.gui.metadata_lab_panel import MetadataLabPanel
 from app.gui.report_panel import ReportPanel
 from app.gui.search_builder_panel import SearchBuilderPanel
 from app.gui.timeline_panel import TimelinePanel
@@ -182,6 +183,9 @@ class MainWindow(QMainWindow):
         self.lead_workspace_panel.tab_open_requested.connect(self._open_tab_by_name)
         self.graph_panel = GraphPanel(self.graph_service)
         self.timeline_panel = TimelinePanel(self.case_service)
+        self.metadata_lab_panel = MetadataLabPanel(self.case_service)
+        self.metadata_lab_panel.status_changed.connect(self.status_bar.showMessage)
+        self.metadata_lab_panel.case_updated.connect(self._on_case_updated)
         self.report_panel = ReportPanel(self.report_service)
 
         self.tabs.addTab(self.case_panel, "Cases")
@@ -189,6 +193,7 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(self.lead_workspace_panel, "Lead Workspace")
         self.tabs.addTab(self.search_builder_panel, "Search Builder")
         self.tabs.addTab(self.entity_research_panel, "Entity Research")
+        self.tabs.addTab(self.metadata_lab_panel, "Metadata Lab")
         self.tabs.addTab(self.timeline_panel, "Timeline")
         self.tabs.addTab(self.findings_panel, "Findings")
         self.tabs.addTab(self.graph_panel, "Graph")
@@ -307,6 +312,7 @@ class MainWindow(QMainWindow):
         self.lead_workspace_panel.load_case(case)
         self.search_builder_panel.load_case(case)
         self.entity_research_panel.load_case(case)
+        self.metadata_lab_panel.load_case(case)
         self.timeline_panel.load_case(case)
         self.findings_panel.load_case(case)
         self.status_bar.showMessage(f"Active case: {case.name}")
