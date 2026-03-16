@@ -1,5 +1,4 @@
-import os
-import subprocess
+import webbrowser
 from pathlib import Path
 
 from PySide6.QtWidgets import (
@@ -89,7 +88,4 @@ class ReportPanel(QWidget):
         allowed_suffixes = {".html", ".json", ".csv"}
         if not path.exists() or path.suffix.lower() not in allowed_suffixes:
             return
-        if os.name == "nt":
-            subprocess.run(["cmd", "/c", "start", "", str(path)], check=False)
-        else:
-            subprocess.run(["xdg-open", str(path)], check=False)
+        webbrowser.open(path.as_uri())

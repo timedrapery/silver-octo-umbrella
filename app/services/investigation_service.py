@@ -1,7 +1,10 @@
 import asyncio
+import logging
 
 from app.core.adapters.base import BaseAdapter
 from app.models.case import Finding, InvestigationPreset, Target, TargetType
+
+logger = logging.getLogger(__name__)
 
 PRESET_ADAPTERS: dict[InvestigationPreset, list[str]] = {
     InvestigationPreset.DOMAIN_INTELLIGENCE: ["dns", "cert", "http", "subdomain"],
@@ -23,12 +26,15 @@ class InvestigationService:
         if adapter_names is not None:
             candidates = [a for a in candidates if a.name in adapter_names]
 
-        tasks = [a.run(target) for a in candidates if a.can_handle(target)]
+        active = [a for a in candidates if a.can_handle(target)]
+        tasks = [a.run(target) for a in active]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         findings: list[Finding] = []
-        for result in results:
-            if isinstance(result, list):
+        for adapter, result in zip(active, results):
+            if isinstance(result, BaseException):
+                logger.warning("Adapter %r failed: %s", adapter.name, result)
+            else:
                 findings.extend(result)
         return findings
 

@@ -83,6 +83,7 @@ class MainWindow(QMainWindow):
     def __init__(self, db: Database, parent=None):
         super().__init__(parent)
         self.db = db
+        self.current_case: Case | None = None
         self._setup_services()
         self._build_ui()
         self.setStyleSheet(DARK_STYLE)
@@ -285,7 +286,7 @@ class MainWindow(QMainWindow):
 
     def _on_investigation_finished(self, findings: list[Finding]):
         self.status_bar.showMessage(f"Investigation complete — {len(findings)} findings")
-        if hasattr(self, "current_case"):
+        if self.current_case is not None:
             for f in findings:
                 self.case_service.add_finding(self.current_case.id, f)
             updated = self.case_service.get_case(self.current_case.id)

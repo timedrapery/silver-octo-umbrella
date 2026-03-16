@@ -172,13 +172,11 @@ class Database:
         rows = cur.execute("SELECT * FROM cases ORDER BY created_at DESC").fetchall()
         return [self._build_case(dict(r)) for r in rows]
 
-    _CHILD_TABLES = frozenset({"targets", "findings", "notes", "evidence"})
+    _CHILD_TABLES = ("targets", "findings", "notes", "evidence")
 
     def delete_case(self, case_id: str):
         cur = self.conn.cursor()
-        for table in ("targets", "findings", "notes", "evidence"):
-            if table not in self._CHILD_TABLES:
-                raise ValueError(f"Invalid table name: {table}")
+        for table in self._CHILD_TABLES:
             cur.execute(f"DELETE FROM {table} WHERE case_id = ?", (case_id,))  # noqa: S608
         cur.execute("DELETE FROM cases WHERE id = ?", (case_id,))
         self.conn.commit()
