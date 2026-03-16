@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QColor
 
 from app.models.case import Case, Finding, Severity
 
@@ -97,7 +98,7 @@ class FindingsPanel(QWidget):
             sev_item = QTableWidgetItem(finding.severity.value)
             color = SEVERITY_COLORS.get(finding.severity.value, "#ffffff")
             sev_item.setForeground(Qt.GlobalColor.white)
-            sev_item.setBackground(__import__("PySide6.QtGui", fromlist=["QColor"]).QColor(color))
+            sev_item.setBackground(QColor(color))
             self.table.setItem(row, 0, sev_item)
             self.table.setItem(row, 1, QTableWidgetItem(finding.finding_type.value))
             self.table.setItem(row, 2, QTableWidgetItem(finding.title))

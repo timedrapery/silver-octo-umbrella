@@ -8,6 +8,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from PySide6.QtCore import QUrl
 
 try:
     from PySide6.QtWebEngineWidgets import QWebEngineView
@@ -66,4 +67,4 @@ class GraphPanel(QWidget):
         with tempfile.NamedTemporaryFile(suffix=".html", delete=False, mode="w") as f:
             tmp_path = f.name
         self.graph_service.generate_pyvis_html(self.current_case, tmp_path)
-        self.web_view.load(__import__("PySide6.QtCore", fromlist=["QUrl"]).QUrl.fromLocalFile(tmp_path))
+        self.web_view.load(QUrl.fromLocalFile(tmp_path))

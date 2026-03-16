@@ -83,8 +83,13 @@ class ReportPanel(QWidget):
         self.path_label.setText(f"Saved: {path}")
 
     def _on_open(self):
-        if self._last_path and Path(self._last_path).exists():
-            if os.name == "nt":
-                os.startfile(self._last_path)  # noqa: S606
-            else:
-                subprocess.run(["xdg-open", self._last_path], check=False)
+        if not self._last_path:
+            return
+        path = Path(self._last_path).resolve()
+        allowed_suffixes = {".html", ".json", ".csv"}
+        if not path.exists() or path.suffix.lower() not in allowed_suffixes:
+            return
+        if os.name == "nt":
+            subprocess.run(["cmd", "/c", "start", "", str(path)], check=False)
+        else:
+            subprocess.run(["xdg-open", str(path)], check=False)
