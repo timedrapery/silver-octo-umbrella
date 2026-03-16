@@ -3,100 +3,239 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>OSINT Report — {{ case.name }}</title>
+  <title>OSINT Report - {{ case.name }}</title>
   <style>
     :root {
-      --bg: #0f0f1a;
-      --panel: #1e1e2e;
-      --panel2: #2d2d3f;
-      --accent: #7c6af7;
-      --text: #e2e8f0;
+      --bg: #0f172a;
+      --panel: #111827;
+      --panel2: #1f2937;
+      --accent: #0ea5e9;
+      --text: #e5e7eb;
       --muted: #9ca3af;
       --info: #6b7280;
       --low: #3b82f6;
       --medium: #f59e0b;
       --high: #ef4444;
       --critical: #dc2626;
+      --new: #6366f1;
+      --reviewed: #22c55e;
+      --flagged: #ef4444;
+      --dismissed: #94a3b8;
+      --ok: #22c55e;
+      --fail: #ef4444;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: var(--bg); color: var(--text); font-family: "Segoe UI", sans-serif; padding: 32px; }
-    header { display: flex; justify-content: space-between; align-items: center;
-             border-bottom: 2px solid var(--accent); padding-bottom: 16px; margin-bottom: 32px; }
-    header h1 { font-size: 28px; color: var(--accent); }
-    header .meta { text-align: right; color: var(--muted); font-size: 13px; line-height: 1.6; }
-    h2 { color: var(--accent); font-size: 18px; margin: 0 0 12px; }
-    h3 { color: var(--text); font-size: 14px; margin: 16px 0 8px; text-transform: uppercase;
-         letter-spacing: 0.05em; opacity: 0.7; }
-    .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 16px; margin-bottom: 24px; }
-    .stat-card { background: var(--panel2); border-radius: 8px; padding: 16px; text-align: center; }
-    .stat-card .num { font-size: 32px; font-weight: bold; color: var(--accent); }
-    .stat-card .label { font-size: 12px; color: var(--muted); margin-top: 4px; }
-    table { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 13px; }
-    th { background: var(--panel2); color: var(--muted); text-align: left; padding: 10px 12px;
-         font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
-    td { padding: 10px 12px; border-bottom: 1px solid #333; vertical-align: top; }
-    tr:hover td { background: var(--panel2); }
-    .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; color: white; white-space: nowrap; }
+    body { background: var(--bg); color: var(--text); font-family: "Segoe UI", sans-serif; padding: 28px; }
+    header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid var(--accent); padding-bottom: 14px; margin-bottom: 22px; gap: 12px; }
+    h1 { font-size: 26px; color: var(--accent); }
+    .meta { color: var(--muted); font-size: 13px; line-height: 1.6; text-align: right; }
+    .section { background: var(--panel); border-radius: 8px; padding: 18px; margin-bottom: 20px; }
+    h2 { color: var(--accent); font-size: 18px; margin-bottom: 12px; }
+    h3 { color: var(--text); font-size: 13px; margin: 16px 0 8px; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.85; }
+    p { color: var(--muted); }
+    .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; }
+    .stat-card { background: var(--panel2); border-radius: 8px; padding: 12px; text-align: center; }
+    .num { font-size: 28px; font-weight: 700; color: var(--accent); }
+    .label { font-size: 11px; color: var(--muted); margin-top: 4px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 13px; }
+    th { background: var(--panel2); color: var(--muted); text-align: left; padding: 9px 10px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+    td { padding: 9px 10px; border-bottom: 1px solid #334155; vertical-align: top; }
+    .mono { font-family: Consolas, "Courier New", monospace; }
+    .badge { display: inline-block; border-radius: 999px; color: #fff; font-size: 11px; font-weight: 700; padding: 2px 9px; }
     .badge-INFO { background: var(--info); }
     .badge-LOW { background: var(--low); }
     .badge-MEDIUM { background: var(--medium); }
     .badge-HIGH { background: var(--high); }
     .badge-CRITICAL { background: var(--critical); }
-    .section { background: var(--panel); border-radius: 8px; padding: 20px; margin-bottom: 24px; }
-    .note-card { background: var(--panel2); border-left: 3px solid var(--accent);
-                 border-radius: 4px; padding: 12px 16px; margin-bottom: 10px; font-size: 13px; }
-    .note-card .note-meta { color: var(--muted); font-size: 11px; margin-top: 6px; }
+    .badge-NEW { background: var(--new); }
+    .badge-REVIEWED { background: var(--reviewed); }
+    .badge-FLAGGED { background: var(--flagged); }
+    .badge-DISMISSED { background: var(--dismissed); }
     .entity-list { display: flex; flex-wrap: wrap; gap: 8px; }
-    .entity-tag { background: var(--panel2); border: 1px solid #444; border-radius: 4px;
-                  padding: 3px 10px; font-size: 12px; font-family: monospace; color: var(--text); }
-    .entity-group-label { color: var(--muted); font-size: 11px; text-transform: uppercase;
-                          letter-spacing: 0.05em; margin: 12px 0 6px; }
-    .run-row { display: flex; gap: 12px; font-size: 12px; padding: 6px 0; border-bottom: 1px solid #333; align-items: center; }
-    .run-status-COMPLETE { color: #4ade80; }
-    .run-status-FAILED { color: var(--high); }
-    .run-status-SKIPPED { color: var(--muted); }
-    footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 32px;
-             border-top: 1px solid #333; padding-top: 16px; }
+    .entity-tag { background: var(--panel2); border: 1px solid #334155; border-radius: 4px; color: var(--text); font-size: 12px; padding: 4px 9px; font-family: Consolas, "Courier New", monospace; }
+    .entity-group-label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; margin: 12px 0 6px; }
+    .run-status-COMPLETE { color: var(--ok); font-weight: bold; }
+    .run-status-FAILED { color: var(--fail); font-weight: bold; }
+    .run-status-SKIPPED, .run-status-PENDING, .run-status-RUNNING { color: var(--muted); font-weight: bold; }
+    .note-card { background: var(--panel2); border-left: 3px solid var(--accent); border-radius: 4px; padding: 10px 12px; margin-bottom: 8px; font-size: 13px; }
+    .note-meta { color: var(--muted); font-size: 11px; margin-top: 6px; }
+    footer { text-align: center; color: var(--muted); border-top: 1px solid #334155; margin-top: 24px; padding-top: 12px; font-size: 12px; }
     a { color: var(--accent); }
-    @media print { body { background: white; color: black; } header h1, h2, a { color: #4c3fc7; } }
   </style>
 </head>
 <body>
   <header>
     <div>
-      <h1>🔍 OSINT Research Platform</h1>
-      <p style="color: var(--muted); margin-top: 4px;">Confidential Intelligence Report</p>
+      <h1>OSINT Research Platform</h1>
+      <p>Investigation Report</p>
     </div>
     <div class="meta">
       <div><strong>{{ case.name }}</strong></div>
       <div>Status: {{ case.status.value }}</div>
-      <div>Case ID: {{ case.id[:8] }}…</div>
+      <div>Case ID: {{ case.id }}</div>
       <div>Created: {{ case.created_at.strftime('%Y-%m-%d') if case.created_at.strftime is defined else case.created_at }}</div>
       <div>Generated: {{ now.strftime('%Y-%m-%d %H:%M UTC') }}</div>
     </div>
   </header>
 
-  {# ── Executive Summary ───────────────────────────────────────────────── #}
+  {% set severity_counts = {} %}
+  {% set triage_counts = {'NEW': 0, 'REVIEWED': 0, 'FLAGGED': 0, 'DISMISSED': 0} %}
+  {% for f in case.findings %}
+    {% set _ = severity_counts.update({f.severity.value: (severity_counts.get(f.severity.value, 0) + 1)}) %}
+    {% set _ = triage_counts.update({f.review_state.value: (triage_counts.get(f.review_state.value, 0) + 1)}) %}
+  {% endfor %}
+  {% set triage_ns = namespace(high_unreviewed=0) %}
+  {% for f in case.findings %}
+    {% if f.review_state.value == 'NEW' and (f.severity.value == 'HIGH' or f.severity.value == 'CRITICAL') %}
+      {% set triage_ns.high_unreviewed = triage_ns.high_unreviewed + 1 %}
+    {% endif %}
+  {% endfor %}
+
+  {% set failed_runs = case.adapter_runs|selectattr('status.value', 'equalto', 'FAILED')|list %}
+  {% set complete_runs = case.adapter_runs|selectattr('status.value', 'equalto', 'COMPLETE')|list %}
+  {% set support_links = case.finding_evidence_links %}
+
   <div class="section">
-    <h2>Executive Summary</h2>
-    {% set severity_counts = {} %}
-    {% for f in case.findings %}
-      {% set _ = severity_counts.update({f.severity.value: (severity_counts.get(f.severity.value, 0) + 1)}) %}
-    {% endfor %}
-    <div class="summary-grid">
-      <div class="stat-card"><div class="num">{{ case.targets|length }}</div><div class="label">Targets</div></div>
-      <div class="stat-card"><div class="num">{{ case.findings|length }}</div><div class="label">Total Findings</div></div>
-      <div class="stat-card"><div class="num" style="color:var(--critical);">{{ severity_counts.get('CRITICAL', 0) }}</div><div class="label">Critical</div></div>
-      <div class="stat-card"><div class="num" style="color:var(--high);">{{ severity_counts.get('HIGH', 0) }}</div><div class="label">High</div></div>
-      <div class="stat-card"><div class="num" style="color:var(--medium);">{{ severity_counts.get('MEDIUM', 0) }}</div><div class="label">Medium</div></div>
-      <div class="stat-card"><div class="num" style="color:var(--low);">{{ severity_counts.get('LOW', 0) }}</div><div class="label">Low</div></div>
-    </div>
-    {% if case.description %}
-    <p style="color: var(--muted); margin-top: 8px;">{{ case.description }}</p>
+    <h2>Mission Framing</h2>
+    <table>
+      <tr><th>Mission Summary</th><td>{{ case.mission_intake.mission_summary or '-' }}</td></tr>
+      <tr><th>Priority</th><td>{{ case.mission_intake.priority.value }}</td></tr>
+      <tr><th>Workflow Stage</th><td>{{ case.workflow_stage.value }}</td></tr>
+      <tr><th>Stage Note</th><td>{{ case.workflow_stage_note or '-' }}</td></tr>
+      <tr><th>Stage Updated</th><td>{{ case.workflow_stage_updated_at.strftime('%Y-%m-%d %H:%M') if case.workflow_stage_updated_at.strftime is defined else case.workflow_stage_updated_at }}</td></tr>
+      <tr><th>Scope</th><td>{{ case.mission_intake.scope or '-' }}</td></tr>
+      <tr><th>Constraints</th><td>{{ case.mission_intake.constraints or '-' }}</td></tr>
+      <tr><th>Legal/Operational Notes</th><td>{{ case.mission_intake.legal_operational_notes or '-' }}</td></tr>
+      <tr><th>Risk Notes</th><td>{{ case.mission_intake.risk_notes or '-' }}</td></tr>
+    </table>
+
+    {% if case.mission_intake.objectives %}
+    <h3>Objectives</h3>
+    <div class="entity-list">{% for item in case.mission_intake.objectives %}<span class="entity-tag">{{ item }}</span>{% endfor %}</div>
+    {% endif %}
+
+    {% if case.mission_intake.hypotheses %}
+    <h3>Hypotheses</h3>
+    <div class="entity-list">{% for item in case.mission_intake.hypotheses %}<span class="entity-tag">{{ item }}</span>{% endfor %}</div>
+    {% endif %}
+
+    {% if case.mission_intake.tasks %}
+    <h3>Mission Checklist</h3>
+    <table>
+      <tr><th>Status</th><th>Task</th><th>Note</th></tr>
+      {% for task in case.mission_intake.tasks %}
+      <tr>
+        <td>{{ 'DONE' if task.completed else 'OPEN' }}</td>
+        <td>{{ task.title }}</td>
+        <td>{{ task.note or '-' }}</td>
+      </tr>
+      {% endfor %}
+    </table>
     {% endif %}
   </div>
 
-  {# ── Targets ─────────────────────────────────────────────────────────── #}
+  <div class="section">
+    <h2>Operational Snapshot</h2>
+    <div class="summary-grid">
+      <div class="stat-card"><div class="num">{{ dashboard_snapshot.timeline_health }}</div><div class="label">Timeline Health</div></div>
+      <div class="stat-card"><div class="num">{{ dashboard_snapshot.unresolved_high_risk }}</div><div class="label">High-Risk Open</div></div>
+      <div class="stat-card"><div class="num">{{ dashboard_snapshot.flagged_findings }}</div><div class="label">Flagged Findings</div></div>
+      <div class="stat-card"><div class="num">{{ dashboard_snapshot.new_findings }}</div><div class="label">New Findings</div></div>
+      <div class="stat-card"><div class="num">{{ dashboard_snapshot.saved_searches }}</div><div class="label">Saved Searches</div></div>
+      <div class="stat-card"><div class="num">{{ dashboard_snapshot.researched_entities }}</div><div class="label">Researched Entities</div></div>
+      <div class="stat-card"><div class="num">{{ dashboard_snapshot.evidence_total }}</div><div class="label">Evidence Total</div></div>
+      <div class="stat-card"><div class="num">{{ dashboard_snapshot.evidence_recent_7d }}</div><div class="label">Evidence (7d)</div></div>
+      <div class="stat-card"><div class="num">{{ dashboard_snapshot.phone_research_count }}</div><div class="label">Phone Pivots</div></div>
+      <div class="stat-card"><div class="num">{{ dashboard_snapshot.email_research_count }}</div><div class="label">Email Pivots</div></div>
+      <div class="stat-card"><div class="num">{{ dashboard_snapshot.email_search_count }}</div><div class="label">Email Searches</div></div>
+      <div class="stat-card"><div class="num">{{ dashboard_snapshot.checklist_completed }}/{{ dashboard_snapshot.checklist_total }}</div><div class="label">Checklist Progress</div></div>
+      <div class="stat-card"><div class="num">{{ dashboard_snapshot.reporting_readiness }}</div><div class="label">Reporting Readiness</div></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Finding-Evidence Convergence</h2>
+    <div class="summary-grid">
+      <div class="stat-card"><div class="num">{{ convergence_snapshot.total_links }}</div><div class="label">Support Links</div></div>
+      <div class="stat-card"><div class="num">{{ convergence_snapshot.supported_findings }}</div><div class="label">Supported Findings</div></div>
+      <div class="stat-card"><div class="num" style="color: var(--high);">{{ convergence_snapshot.unsupported_findings }}</div><div class="label">Needs Support</div></div>
+      <div class="stat-card"><div class="num" style="color: var(--medium);">{{ convergence_snapshot.low_confidence_findings }}</div><div class="label">Low Confidence</div></div>
+      <div class="stat-card"><div class="num">{{ convergence_snapshot.promoted_findings }}</div><div class="label">Promoted Findings</div></div>
+      <div class="stat-card"><div class="num" style="color: var(--muted);">{{ convergence_snapshot.unlinked_evidence }}</div><div class="label">Unlinked Evidence</div></div>
+      <div class="stat-card"><div class="num">{{ convergence_snapshot.attachments_total }}</div><div class="label">Attachments</div></div>
+      <div class="stat-card"><div class="num" style="color: var(--medium);">{{ convergence_snapshot.public_media_attachments }}</div><div class="label">Public URL / Media</div></div>
+      <div class="stat-card"><div class="num" style="color: var(--high);">{{ convergence_snapshot.evidence_without_attachments }}</div><div class="label">Evidence Missing Attachments</div></div>
+    </div>
+  </div>
+
+  {% if case.leads %}
+  <div class="section">
+    <h2>Subjects Of Interest</h2>
+    <div class="summary-grid">
+      <div class="stat-card"><div class="num">{{ lead_snapshot.total }}</div><div class="label">Total Leads</div></div>
+      <div class="stat-card"><div class="num">{{ lead_snapshot.high_value }}</div><div class="label">High Priority</div></div>
+      <div class="stat-card"><div class="num">{{ lead_snapshot.active }}</div><div class="label">Active</div></div>
+      <div class="stat-card"><div class="num">{{ lead_snapshot.needs_review }}</div><div class="label">Needs Review</div></div>
+      <div class="stat-card"><div class="num">{{ lead_snapshot.corroborated }}</div><div class="label">Corroborated</div></div>
+      <div class="stat-card"><div class="num">{{ lead_snapshot.deprioritized }}</div><div class="label">Deprioritized</div></div>
+    </div>
+
+    <table>
+      <tr><th>Lead</th><th>Kind</th><th>Lifecycle</th><th>Priority</th><th>Confidence</th><th>Context</th><th>Why It Matters</th><th>Linked Targets</th><th>Linked Entities</th></tr>
+      {% for lead in case.leads|sort(attribute='updated_at', reverse=true) %}
+      <tr>
+        <td class="mono">{{ lead.display_label }}</td>
+        <td>{{ lead.kind }}</td>
+        <td><span class="badge badge-INFO">{{ lead.lifecycle_state.value }}</span></td>
+        <td>{{ lead.priority.value }}</td>
+        <td>{{ '%.2f'|format(lead.confidence_score) }}</td>
+        <td>{{ lead.context_summary or '-' }}</td>
+        <td>{{ lead.why_it_matters or '-' }}</td>
+        <td>{{ lead.linked_target_ids|length }}</td>
+        <td>{{ lead.linked_entity_ids|length }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+  {% endif %}
+
+  <div class="section">
+    <h2>Executive Summary</h2>
+    <div class="summary-grid">
+      <div class="stat-card"><div class="num">{{ case.targets|length }}</div><div class="label">Targets</div></div>
+      <div class="stat-card"><div class="num">{{ case.findings|length }}</div><div class="label">Findings</div></div>
+      <div class="stat-card"><div class="num">{{ triage_counts.get('NEW', 0) }}</div><div class="label">New</div></div>
+      <div class="stat-card"><div class="num" style="color: var(--reviewed);">{{ triage_counts.get('REVIEWED', 0) }}</div><div class="label">Reviewed</div></div>
+      <div class="stat-card"><div class="num" style="color: var(--flagged);">{{ triage_counts.get('FLAGGED', 0) }}</div><div class="label">Flagged</div></div>
+      <div class="stat-card"><div class="num" style="color: var(--dismissed);">{{ triage_counts.get('DISMISSED', 0) }}</div><div class="label">Dismissed</div></div>
+      <div class="stat-card"><div class="num" style="color: var(--critical);">{{ severity_counts.get('CRITICAL', 0) }}</div><div class="label">Critical</div></div>
+      <div class="stat-card"><div class="num" style="color: var(--high);">{{ triage_ns.high_unreviewed }}</div><div class="label">High/Critical New</div></div>
+      <div class="stat-card"><div class="num">{{ case.adapter_runs|length }}</div><div class="label">Adapter Runs</div></div>
+      <div class="stat-card"><div class="num" style="color: var(--ok);">{{ complete_runs|length }}</div><div class="label">Runs Succeeded</div></div>
+      <div class="stat-card"><div class="num" style="color: var(--fail);">{{ failed_runs|length }}</div><div class="label">Runs Failed</div></div>
+    </div>
+    {% if case.description %}
+    <p style="margin-top: 10px;">{{ case.description }}</p>
+    {% endif %}
+  </div>
+
+  {% if timeline_events %}
+  <div class="section">
+    <h2>Case Activity Timeline ({{ timeline_events|length }})</h2>
+    <table>
+      <tr><th>When</th><th>Category</th><th>Event</th><th>Summary</th></tr>
+      {% for ev in timeline_events %}
+      <tr>
+        <td>{{ ev.occurred_at.strftime('%Y-%m-%d %H:%M:%S') if ev.occurred_at.strftime is defined else ev.occurred_at }}</td>
+        <td>{{ ev.category.value }}</td>
+        <td>{{ ev.event_type }}</td>
+        <td>{{ ev.summary }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+  {% endif %}
+
   {% if case.targets %}
   <div class="section">
     <h2>Targets ({{ case.targets|length }})</h2>
@@ -105,16 +244,197 @@
       {% for t in case.targets %}
       <tr>
         <td><span class="badge badge-INFO">{{ t.type.value }}</span></td>
-        <td style="font-family:monospace;">{{ t.value }}</td>
-        <td>{{ t.created_at.strftime('%Y-%m-%d') if t.created_at.strftime is defined else t.created_at }}</td>
-        <td>{{ t.tags|join(', ') if t.tags else '—' }}</td>
+        <td class="mono">{{ t.value }}</td>
+        <td>{{ t.created_at.strftime('%Y-%m-%d %H:%M') if t.created_at.strftime is defined else t.created_at }}</td>
+        <td>{{ t.tags|join(', ') if t.tags else '-' }}</td>
       </tr>
       {% endfor %}
     </table>
   </div>
   {% endif %}
 
-  {# ── Analyst Notes ───────────────────────────────────────────────────── #}
+  {% if case.saved_searches %}
+  <div class="section">
+    <h2>Guided Search Activity ({{ case.saved_searches|length }})</h2>
+    <table>
+      <tr><th>Title</th><th>Intent</th><th>Target</th><th>Provider</th><th>Query</th><th>Explanation</th><th>Note</th><th>Created</th></tr>
+      {% for s in case.saved_searches|sort(attribute='created_at', reverse=true) %}
+      <tr>
+        <td><strong>{{ s.title }}</strong></td>
+        <td>{{ s.intent.value }}</td>
+        <td class="mono">{{ s.target_id or '-' }}</td>
+        <td>{{ s.provider.value }}</td>
+        <td class="mono">{{ s.query }}</td>
+        <td>{{ s.explanation }}</td>
+        <td>{{ s.analyst_note or '-' }}</td>
+        <td>{{ s.created_at.strftime('%Y-%m-%d %H:%M') if s.created_at.strftime is defined else s.created_at }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+  {% endif %}
+
+  {% set flagged_findings = case.findings|selectattr('review_state.value', 'equalto', 'FLAGGED')|list %}
+  {% if flagged_findings %}
+  <div class="section">
+    <h2>Flagged Findings ({{ flagged_findings|length }})</h2>
+    <table>
+      <tr><th>Severity</th><th>Title</th><th>Type</th><th>Adapter</th><th>Run ID</th><th>Analyst Note</th></tr>
+      {% for f in flagged_findings|sort(attribute='collected_at', reverse=true) %}
+      <tr>
+        <td><span class="badge badge-{{ f.severity.value }}">{{ f.severity.value }}</span></td>
+        <td><strong>{{ f.title }}</strong></td>
+        <td>{{ f.finding_type.value }}</td>
+        <td>{{ f.adapter_name }}</td>
+        <td class="mono">{{ f.adapter_run_id or '-' }}</td>
+        <td>{{ f.analyst_note or '-' }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+  {% endif %}
+
+  {% set active_findings = case.findings|rejectattr('review_state.value', 'equalto', 'DISMISSED')|list %}
+  {% if active_findings %}
+  <div class="section">
+    <h2>Active Findings Queue ({{ active_findings|length }})</h2>
+    <table>
+      <tr><th>State</th><th>Decision</th><th>Confidence</th><th>Supported</th><th>Severity</th><th>Type</th><th>Title</th><th>Adapter</th><th>Run ID</th><th>Collected</th><th>Source</th></tr>
+      {% for f in active_findings|sort(attribute='collected_at', reverse=true) %}
+      {% set ns = namespace(support_count=0) %}
+      {% for link in support_links %}
+        {% if link.finding_id == f.id %}
+          {% set ns.support_count = ns.support_count + 1 %}
+        {% endif %}
+      {% endfor %}
+      <tr>
+        <td><span class="badge badge-{{ f.review_state.value }}">{{ f.review_state.value }}</span></td>
+        <td>{{ f.decision_state.value }}</td>
+        <td>{{ '%.2f'|format(f.decision_confidence) }}</td>
+        <td>{{ ns.support_count }}</td>
+        <td><span class="badge badge-{{ f.severity.value }}">{{ f.severity.value }}</span></td>
+        <td>{{ f.finding_type.value }}</td>
+        <td><strong>{{ f.title }}</strong></td>
+        <td>{{ f.adapter_name }}</td>
+        <td class="mono">{{ f.adapter_run_id or '-' }}</td>
+        <td>{{ f.collected_at.strftime('%Y-%m-%d %H:%M') if f.collected_at.strftime is defined else f.collected_at }}</td>
+        <td>{{ f.source_name or '-' }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+  {% endif %}
+
+  {% set support_ns = namespace(finding_ids=[], evidence_ids=[]) %}
+  {% for link in support_links %}
+    {% set support_ns.finding_ids = support_ns.finding_ids + [link.finding_id] %}
+    {% set support_ns.evidence_ids = support_ns.evidence_ids + [link.evidence_id] %}
+  {% endfor %}
+  {% if support_ns.finding_ids %}
+  <div class="section">
+    <h2>Major Supported Findings</h2>
+    <table>
+      <tr><th>Finding</th><th>Decision</th><th>Confidence</th><th>Support Links</th><th>Rationale</th></tr>
+      {% for f in case.findings|sort(attribute='decision_confidence', reverse=true) %}
+      {% if f.id in support_ns.finding_ids %}
+      {% set ns = namespace(count=0, rationale='-') %}
+      {% for link in support_links %}
+        {% if link.finding_id == f.id %}
+          {% set ns.count = ns.count + 1 %}
+          {% if ns.rationale == '-' and link.rationale %}
+            {% set ns.rationale = link.rationale %}
+          {% endif %}
+        {% endif %}
+      {% endfor %}
+      <tr>
+        <td>{{ f.title }}</td>
+        <td>{{ f.decision_state.value }}</td>
+        <td>{{ '%.2f'|format(f.decision_confidence) }}</td>
+        <td>{{ ns.count }}</td>
+        <td>{{ f.decision_rationale or ns.rationale }}</td>
+      </tr>
+      {% endif %}
+      {% endfor %}
+    </table>
+  </div>
+  {% endif %}
+
+  {% if case.evidence %}
+  {% set attachment_ns = namespace(total=0) %}
+  {% for attachment in case.evidence_attachments %}
+    {% set attachment_ns.total = attachment_ns.total + 1 %}
+  {% endfor %}
+  {% if attachment_ns.total > 0 %}
+  <div class="section">
+    <h2>Evidence Attachments ({{ attachment_ns.total }})</h2>
+    <table>
+      <tr><th>Evidence</th><th>Type</th><th>Platform</th><th>Source URL</th><th>File Path</th><th>Captured</th><th>Provenance</th></tr>
+      {% for attachment in case.evidence_attachments|sort(attribute='captured_at', reverse=true) %}
+      {% set evidence_ns = namespace(label='-') %}
+      {% for ev in case.evidence %}
+        {% if ev.id == attachment.evidence_id %}
+          {% set evidence_ns.label = ev.normalized_summary or ev.description or ev.id %}
+        {% endif %}
+      {% endfor %}
+      <tr>
+        <td>{{ evidence_ns.label }}</td>
+        <td>{{ attachment.attachment_type.value }}</td>
+        <td>{{ attachment.source_platform or '-' }}</td>
+        <td>{% if attachment.source_url %}<a href="{{ attachment.source_url }}">{{ attachment.source_url }}</a>{% else %}-{% endif %}</td>
+        <td class="mono">{{ attachment.file_path or '-' }}</td>
+        <td>{{ attachment.captured_at.strftime('%Y-%m-%d %H:%M') if attachment.captured_at.strftime is defined else attachment.captured_at }}</td>
+        <td>{{ attachment.provenance_note or '-' }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+  {% endif %}
+
+  {% set unlinked_ns = namespace(total=0) %}
+  {% for ev in case.evidence %}
+    {% if ev.id not in support_ns.evidence_ids %}
+      {% set unlinked_ns.total = unlinked_ns.total + 1 %}
+    {% endif %}
+  {% endfor %}
+  {% if unlinked_ns.total > 0 %}
+  <div class="section">
+    <h2>Evidence Needing Finding Correlation ({{ unlinked_ns.total }})</h2>
+    <table>
+      <tr><th>Evidence</th><th>Reliability</th><th>Origin</th><th>Collected</th></tr>
+      {% for ev in case.evidence|sort(attribute='collected_at', reverse=true) %}
+      {% if ev.id not in support_ns.evidence_ids %}
+      <tr>
+        <td>{{ ev.normalized_summary or ev.description or '-' }}</td>
+        <td>{{ ev.source_reliability.value }}</td>
+        <td>{{ ev.raw_json_data.get('workflow', 'manual') }}</td>
+        <td>{{ ev.collected_at.strftime('%Y-%m-%d %H:%M') if ev.collected_at.strftime is defined else ev.collected_at }}</td>
+      </tr>
+      {% endif %}
+      {% endfor %}
+    </table>
+  </div>
+  {% endif %}
+  {% endif %}
+
+  {% set dismissed_findings = case.findings|selectattr('review_state.value', 'equalto', 'DISMISSED')|list %}
+  {% if dismissed_findings %}
+  <div class="section">
+    <h2>Dismissed Findings ({{ dismissed_findings|length }})</h2>
+    <table>
+      <tr><th>Severity</th><th>Title</th><th>Adapter</th><th>Reason / Note</th><th>Collected</th></tr>
+      {% for f in dismissed_findings|sort(attribute='collected_at', reverse=true) %}
+      <tr>
+        <td><span class="badge badge-{{ f.severity.value }}">{{ f.severity.value }}</span></td>
+        <td>{{ f.title }}</td>
+        <td>{{ f.adapter_name }}</td>
+        <td>{{ f.analyst_note or '-' }}</td>
+        <td>{{ f.collected_at.strftime('%Y-%m-%d %H:%M') if f.collected_at.strftime is defined else f.collected_at }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+  {% endif %}
+
   {% if case.notes %}
   <div class="section">
     <h2>Analyst Notes ({{ case.notes|length }})</h2>
@@ -123,17 +443,14 @@
       {{ note.content }}
       <div class="note-meta">
         {{ note.created_at.strftime('%Y-%m-%d %H:%M UTC') if note.created_at.strftime is defined else note.created_at }}
-        {% if note.tags %} · {{ note.tags|join(', ') }}{% endif %}
+        {% if note.tags %} | {{ note.tags|join(', ') }}{% endif %}
       </div>
     </div>
     {% endfor %}
   </div>
   {% endif %}
 
-  {# ── Discovered Entities ─────────────────────────────────────────────── #}
-  {% set has_entities = entities.ips or entities.subdomains or entities.domains
-                        or entities.organizations or entities.platforms
-                        or entities.software or entities.persons %}
+  {% set has_entities = entities.ips or entities.subdomains or entities.domains or entities.organizations or entities.platforms or entities.software or entities.persons %}
   {% if has_entities %}
   <div class="section">
     <h2>Discovered Entities</h2>
@@ -146,7 +463,7 @@
     <div class="entity-list">{% for v in entities.subdomains %}<span class="entity-tag">{{ v }}</span>{% endfor %}</div>
     {% endif %}
     {% if entities.domains %}
-    <div class="entity-group-label">Domains / Mail Hosts ({{ entities.domains|length }})</div>
+    <div class="entity-group-label">Domains ({{ entities.domains|length }})</div>
     <div class="entity-list">{% for v in entities.domains %}<span class="entity-tag">{{ v }}</span>{% endfor %}</div>
     {% endif %}
     {% if entities.organizations %}
@@ -154,55 +471,90 @@
     <div class="entity-list">{% for v in entities.organizations %}<span class="entity-tag">{{ v }}</span>{% endfor %}</div>
     {% endif %}
     {% if entities.platforms %}
-    <div class="entity-group-label">Social Platforms</div>
+    <div class="entity-group-label">Platforms</div>
     <div class="entity-list">{% for v in entities.platforms %}<span class="entity-tag">{{ v }}</span>{% endfor %}</div>
     {% endif %}
     {% if entities.software %}
-    <div class="entity-group-label">Software & Technologies</div>
+    <div class="entity-group-label">Software</div>
     <div class="entity-list">{% for v in entities.software %}<span class="entity-tag">{{ v }}</span>{% endfor %}</div>
     {% endif %}
     {% if entities.persons %}
-    <div class="entity-group-label">Persons / Authors</div>
+    <div class="entity-group-label">Persons</div>
     <div class="entity-list">{% for v in entities.persons %}<span class="entity-tag">{{ v }}</span>{% endfor %}</div>
     {% endif %}
   </div>
   {% endif %}
 
-  {# ── Findings by Category ────────────────────────────────────────────── #}
-  {% if case.findings %}
-  {% set finding_types = case.findings|map(attribute='finding_type')|map(attribute='value')|unique|list|sort %}
+  {% set research_entities = case.entities|selectattr('metadata.source', 'equalto', 'entity_research')|list %}
+  {% if research_entities %}
   <div class="section">
-    <h2>Findings by Category ({{ case.findings|length }} total)</h2>
-    {% for ftype in finding_types %}
-    {% set type_findings = case.findings|selectattr('finding_type.value','equalto',ftype)|list %}
-    <h3>{{ ftype }} ({{ type_findings|length }})</h3>
+    <h2>Entity Research Workspace Activity ({{ research_entities|length }})</h2>
     <table>
-      <tr><th>Severity</th><th>Title</th><th>Adapter</th><th>Description</th><th>Collected</th></tr>
-      {% for f in type_findings|sort(attribute='severity.value') %}
+      <tr><th>Entity</th><th>Kind</th><th>Display</th><th>Tags</th><th>Last Updated</th></tr>
+      {% for e in research_entities|sort(attribute='updated_at', reverse=true) %}
       <tr>
-        <td><span class="badge badge-{{ f.severity.value }}">{{ f.severity.value }}</span></td>
-        <td><strong>{{ f.title }}</strong></td>
-        <td>{{ f.adapter_name }}</td>
-        <td>{{ f.description[:140] }}{% if f.description|length > 140 %}…{% endif %}</td>
-        <td style="white-space:nowrap;">{{ f.collected_at.strftime('%Y-%m-%d %H:%M') if f.collected_at.strftime is defined else f.collected_at }}</td>
+        <td class="mono">{{ e.value }}</td>
+        <td>{{ e.kind.value }}</td>
+        <td>{{ e.display_name or '-' }}</td>
+        <td>{{ e.tags|join(', ') if e.tags else '-' }}</td>
+        <td>{{ e.updated_at.strftime('%Y-%m-%d %H:%M') if e.updated_at.strftime is defined else e.updated_at }}</td>
       </tr>
       {% endfor %}
     </table>
-    {% endfor %}
   </div>
   {% endif %}
 
-  {# ── Source Citations ────────────────────────────────────────────────── #}
+  {% set promoted_research = case.evidence|selectattr('raw_json_data.workflow', 'equalto', 'entity_research')|list %}
+  {% if promoted_research %}
+  <div class="section">
+    <h2>Promoted Research Evidence ({{ promoted_research|length }})</h2>
+    <table>
+      <tr><th>Provider</th><th>Summary</th><th>Reliability</th><th>Entity ID</th><th>Collected</th></tr>
+      {% for ev in promoted_research|sort(attribute='collected_at', reverse=true) %}
+      <tr>
+        <td>{{ ev.raw_json_data.get('provider_name', '-') }}</td>
+        <td>{{ ev.normalized_summary or ev.description or '-' }}</td>
+        <td>{{ ev.source_reliability.value }}</td>
+        <td class="mono">{{ ev.entity_id or '-' }}</td>
+        <td>{{ ev.collected_at.strftime('%Y-%m-%d %H:%M') if ev.collected_at.strftime is defined else ev.collected_at }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+  {% endif %}
+
+  {% if case.adapter_runs %}
+  <div class="section">
+    <h2>Adapter Run Log ({{ case.adapter_runs|length }})</h2>
+    <table>
+      <tr><th>Run ID</th><th>Adapter</th><th>Status</th><th>Target</th><th>Findings</th><th>Duration (s)</th><th>Started</th><th>Completed</th><th>Error</th></tr>
+      {% for run in case.adapter_runs %}
+      <tr>
+        <td class="mono">{{ run.id }}</td>
+        <td>{{ run.adapter_name }}</td>
+        <td class="run-status-{{ run.status.value }}">{{ run.status.value }}</td>
+        <td class="mono">{{ run.target_id }}</td>
+        <td>{{ run.finding_count }}</td>
+        <td>{{ '%.2f'|format(run.duration_seconds) }}</td>
+        <td>{{ run.started_at.strftime('%Y-%m-%d %H:%M:%S') if run.started_at.strftime is defined else run.started_at }}</td>
+        <td>{{ run.completed_at.strftime('%Y-%m-%d %H:%M:%S') if run.completed_at and run.completed_at.strftime is defined else (run.completed_at or '-') }}</td>
+        <td>{{ run.error_message or '-' }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+  {% endif %}
+
   {% set cited = case.findings|selectattr('source_url')|list %}
   {% if cited %}
   <div class="section">
-    <h2>Source Citations ({{ cited|length }})</h2>
+    <h2>Source Citations</h2>
     <table>
       <tr><th>Finding</th><th>Source</th><th>URL</th></tr>
       {% for f in cited %}
       <tr>
         <td>{{ f.title }}</td>
-        <td>{{ f.source_name or '—' }}</td>
+        <td>{{ f.source_name or '-' }}</td>
         <td><a href="{{ f.source_url }}">{{ f.source_url }}</a></td>
       </tr>
       {% endfor %}
@@ -210,156 +562,8 @@
   </div>
   {% endif %}
 
-  {# ── Adapter Run Log ─────────────────────────────────────────────────── #}
-  {% if case.adapter_runs %}
-  <div class="section">
-    <h2>Adapter Run Log</h2>
-    {% for run in case.adapter_runs %}
-    <div class="run-row">
-      <span class="run-status-{{ run.status.value }}" style="width:70px;">{{ run.status.value }}</span>
-      <span style="width:90px;font-weight:bold;">{{ run.adapter_name }}</span>
-      <span style="color:var(--muted);">{{ run.finding_count }} finding(s)</span>
-      <span style="color:var(--muted);">{{ '%.1f'|format(run.duration_seconds) }}s</span>
-      {% if run.error_message %}
-      <span style="color:var(--high);">{{ run.error_message[:80] }}</span>
-      {% endif %}
-    </div>
-    {% endfor %}
-  </div>
-  {% endif %}
-
   <footer>
-    OSINT Research Platform — Confidential — {{ case.name }} — Case {{ case.id[:8] }}
-  </footer>
-</body>
-</html>
-
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>OSINT Report — {{ case.name }}</title>
-  <style>
-    :root {
-      --bg: #0f0f1a;
-      --panel: #1e1e2e;
-      --panel2: #2d2d3f;
-      --accent: #7c6af7;
-      --text: #e2e8f0;
-      --muted: #9ca3af;
-      --info: #6b7280;
-      --low: #3b82f6;
-      --medium: #f59e0b;
-      --high: #ef4444;
-      --critical: #dc2626;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: var(--bg); color: var(--text); font-family: "Segoe UI", sans-serif; padding: 32px; }
-    header { display: flex; justify-content: space-between; align-items: center;
-             border-bottom: 2px solid var(--accent); padding-bottom: 16px; margin-bottom: 32px; }
-    header h1 { font-size: 28px; color: var(--accent); }
-    header .meta { text-align: right; color: var(--muted); font-size: 13px; }
-    h2 { color: var(--accent); font-size: 18px; margin: 24px 0 12px; }
-    .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 16px; margin-bottom: 24px; }
-    .stat-card { background: var(--panel2); border-radius: 8px; padding: 16px; text-align: center; }
-    .stat-card .num { font-size: 32px; font-weight: bold; color: var(--accent); }
-    .stat-card .label { font-size: 12px; color: var(--muted); margin-top: 4px; }
-    table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
-    th { background: var(--panel2); color: var(--muted); text-align: left; padding: 10px 12px; font-size: 12px; text-transform: uppercase; }
-    td { padding: 10px 12px; border-bottom: 1px solid #333; font-size: 13px; vertical-align: top; }
-    tr:hover td { background: var(--panel2); }
-    .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; color: white; }
-    .badge-INFO { background: var(--info); }
-    .badge-LOW { background: var(--low); }
-    .badge-MEDIUM { background: var(--medium); }
-    .badge-HIGH { background: var(--high); }
-    .badge-CRITICAL { background: var(--critical); }
-    .section { background: var(--panel); border-radius: 8px; padding: 20px; margin-bottom: 24px; }
-    footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 32px; border-top: 1px solid #333; padding-top: 16px; }
-  </style>
-</head>
-<body>
-  <header>
-    <div>
-      <h1>🔍 OSINT Research Platform</h1>
-      <p style="color: var(--muted); margin-top: 4px;">Confidential Intelligence Report</p>
-    </div>
-    <div class="meta">
-      <div><strong>{{ case.name }}</strong></div>
-      <div>Status: {{ case.status.value }}</div>
-      <div>Generated: {{ case.updated_at.strftime('%Y-%m-%d %H:%M UTC') if case.updated_at.strftime is defined else case.updated_at }}</div>
-    </div>
-  </header>
-
-  <div class="section">
-    <h2>Executive Summary</h2>
-    {% set severity_counts = {} %}
-    {% for f in case.findings %}
-      {% set _ = severity_counts.update({f.severity.value: (severity_counts.get(f.severity.value, 0) + 1)}) %}
-    {% endfor %}
-    <div class="summary-grid">
-      <div class="stat-card"><div class="num">{{ case.targets|length }}</div><div class="label">Targets</div></div>
-      <div class="stat-card"><div class="num">{{ case.findings|length }}</div><div class="label">Findings</div></div>
-      <div class="stat-card"><div class="num" style="color:#dc2626;">{{ severity_counts.get('CRITICAL', 0) }}</div><div class="label">Critical</div></div>
-      <div class="stat-card"><div class="num" style="color:#ef4444;">{{ severity_counts.get('HIGH', 0) }}</div><div class="label">High</div></div>
-      <div class="stat-card"><div class="num" style="color:#f59e0b;">{{ severity_counts.get('MEDIUM', 0) }}</div><div class="label">Medium</div></div>
-      <div class="stat-card"><div class="num" style="color:#3b82f6;">{{ severity_counts.get('LOW', 0) }}</div><div class="label">Low</div></div>
-    </div>
-    {% if case.description %}
-    <p style="color: var(--muted);">{{ case.description }}</p>
-    {% endif %}
-  </div>
-
-  {% if case.targets %}
-  <div class="section">
-    <h2>Targets ({{ case.targets|length }})</h2>
-    <table>
-      <tr><th>Type</th><th>Value</th><th>Added</th></tr>
-      {% for t in case.targets %}
-      <tr>
-        <td><span class="badge badge-INFO">{{ t.type.value }}</span></td>
-        <td>{{ t.value }}</td>
-        <td>{{ t.created_at }}</td>
-      </tr>
-      {% endfor %}
-    </table>
-  </div>
-  {% endif %}
-
-  <div class="section">
-    <h2>Findings ({{ case.findings|length }})</h2>
-    <table>
-      <tr><th>Severity</th><th>Type</th><th>Title</th><th>Adapter</th><th>Description</th><th>Collected</th></tr>
-      {% for f in case.findings|sort(attribute='severity.value') %}
-      <tr>
-        <td><span class="badge badge-{{ f.severity.value }}">{{ f.severity.value }}</span></td>
-        <td>{{ f.finding_type.value }}</td>
-        <td><strong>{{ f.title }}</strong></td>
-        <td>{{ f.adapter_name }}</td>
-        <td>{{ f.description[:120] }}{% if f.description|length > 120 %}…{% endif %}</td>
-        <td>{{ f.collected_at }}</td>
-      </tr>
-      {% endfor %}
-    </table>
-  </div>
-
-  {% if case.findings %}
-  <div class="section">
-    <h2>Source Citations</h2>
-    <table>
-      <tr><th>Finding</th><th>Source</th><th>URL</th></tr>
-      {% for f in case.findings if f.source_url %}
-      <tr>
-        <td>{{ f.title }}</td>
-        <td>{{ f.source_name }}</td>
-        <td><a href="{{ f.source_url }}" style="color: var(--accent);">{{ f.source_url }}</a></td>
-      </tr>
-      {% endfor %}
-    </table>
-  </div>
-  {% endif %}
-
-  <footer>
-    OSINT Research Platform — Confidential — {{ case.name }} — {{ case.id }}
+    OSINT Research Platform - Case {{ case.id }}
   </footer>
 </body>
 </html>

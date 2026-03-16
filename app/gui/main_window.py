@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
     QTabWidget,
     QTableWidget,
     QTableWidgetItem,
+    QMessageBox,
     QVBoxLayout,
     QWidget,
 )
@@ -26,16 +27,34 @@ from app.core.adapters.metadata_adapter import MetadataAdapter
 from app.core.adapters.social_adapter import SocialAdapter
 from app.core.adapters.subdomain_adapter import SubdomainAdapter
 from app.gui.case_panel import CasePanel
+from app.gui.entity_research_panel import EntityResearchPanel
 from app.gui.findings_panel import FindingsPanel
 from app.gui.graph_panel import GraphPanel
+from app.gui.lead_workspace_panel import LeadWorkspacePanel
 from app.gui.report_panel import ReportPanel
+from app.gui.search_builder_panel import SearchBuilderPanel
+from app.gui.timeline_panel import TimelinePanel
 from app.gui.widgets.progress_widget import ProgressWidget
 from app.gui.workers import InvestigationWorker
-from app.models.case import Case, Finding, InvestigationPreset, Target, TargetType
+from app.models.case import (
+    AdapterRunStatus,
+    Case,
+    Finding,
+    FindingDecisionState,
+    FindingReviewState,
+    InvestigationPreset,
+    Target,
+    TargetType,
+)
 from app.services.case_service import CaseService
+from app.services.entity_research_service import EntityResearchService
+from app.services.findings_service import FindingsService
 from app.services.graph_service import GraphService
+from app.services.intelligence_orchestrator import MultiSourceOrchestrator
 from app.services.investigation_service import InvestigationService
 from app.services.report_service import ReportService
+from app.services.search_builder_service import SearchBuilderService
+from app.storage.intelligence_repository import IntelligenceRepository
 from app.storage.database import Database
 
 DARK_STYLE = """
@@ -92,6 +111,13 @@ class MainWindow(QMainWindow):
 
     def _setup_services(self):
         self.case_service = CaseService(self.db)
+        self.findings_service = FindingsService()
+        self.search_builder_service = SearchBuilderService()
+        self.intelligence_repository = IntelligenceRepository(self.db)
+        self.entity_research_service = EntityResearchService(
+            orchestrator=MultiSourceOrchestrator(),
+            repository=self.intelligence_repository,
+        )
         self.investigation_service = InvestigationService([
             DnsAdapter(), CertAdapter(), HttpAdapter(),
             SocialAdapter(), SubdomainAdapter(), MetadataAdapter(),
@@ -128,12 +154,42 @@ class MainWindow(QMainWindow):
         self.tabs = QTabWidget()
         self.case_panel = CasePanel(self.case_service)
         self.case_panel.case_selected.connect(self._on_case_selected)
-        self.findings_panel = FindingsPanel()
+        self.case_panel.case_updated.connect(self._on_case_updated)
+        self.findings_panel = FindingsPanel(self.findings_service)
+        self.findings_panel.triage_update_requested.connect(self._on_finding_triage_update)
+        self.findings_panel.decision_update_requested.connect(self._on_finding_decision_update)
+        self.findings_panel.correlate_requested.connect(self._on_finding_correlate)
+        self.findings_panel.promote_requested.connect(self._on_finding_promote)
+        self.findings_panel.attachment_requested.connect(self._on_evidence_attachment)
+        self.findings_panel.public_media_capture_requested.connect(self._on_public_media_capture)
+        self.search_builder_panel = SearchBuilderPanel(
+            self.case_service,
+            self.search_builder_service,
+        )
+        self.entity_research_panel = EntityResearchPanel(
+            self.case_service,
+            self.entity_research_service,
+        )
+        self.entity_research_panel.status_changed.connect(self.status_bar.showMessage)
+        self.entity_research_panel.case_updated.connect(self._on_case_selected)
+        self.search_builder_panel.status_changed.connect(self.status_bar.showMessage)
+        self.lead_workspace_panel = LeadWorkspacePanel(self.case_service)
+        self.lead_workspace_panel.status_changed.connect(self.status_bar.showMessage)
+        self.lead_workspace_panel.case_updated.connect(self._on_case_updated)
+        self.lead_workspace_panel.research_pivot_requested.connect(self._on_research_pivot_requested)
+        self.lead_workspace_panel.email_pivot_requested.connect(self._on_email_pivot_requested)
+        self.lead_workspace_panel.username_pivot_requested.connect(self._on_username_pivot_requested)
+        self.lead_workspace_panel.tab_open_requested.connect(self._open_tab_by_name)
         self.graph_panel = GraphPanel(self.graph_service)
+        self.timeline_panel = TimelinePanel(self.case_service)
         self.report_panel = ReportPanel(self.report_service)
 
         self.tabs.addTab(self.case_panel, "Cases")
         self.tabs.addTab(self._build_investigation_tab(), "Investigation")
+        self.tabs.addTab(self.lead_workspace_panel, "Lead Workspace")
+        self.tabs.addTab(self.search_builder_panel, "Search Builder")
+        self.tabs.addTab(self.entity_research_panel, "Entity Research")
+        self.tabs.addTab(self.timeline_panel, "Timeline")
         self.tabs.addTab(self.findings_panel, "Findings")
         self.tabs.addTab(self.graph_panel, "Graph")
         self.tabs.addTab(self.report_panel, "Reports")
@@ -149,7 +205,21 @@ class MainWindow(QMainWindow):
         file_menu.addSeparator()
         file_menu.addAction("Exit", self.close)
         menu_bar.addMenu("View")
-        menu_bar.addMenu("Help")
+        help_menu = menu_bar.addMenu("Help")
+        help_menu.addAction("Quick Start", self._show_quick_start)
+
+    def _show_quick_start(self):
+        QMessageBox.information(
+            self,
+            "Quick Start",
+            (
+                "1) Create a case in the sidebar.\n"
+                "2) Add mission summary and objectives in the Cases tab.\n"
+                "3) Add targets, then use Featured Collection Actions for phone/email pivots.\n"
+                "4) Run Investigation and Entity Research tabs.\n"
+                "5) Use Recommended Next Actions to progress stage-by-stage."
+            ),
+        )
 
     def _build_investigation_tab(self) -> QWidget:
         widget = QWidget()
@@ -219,6 +289,8 @@ class MainWindow(QMainWindow):
         self._sidebar_cases = self.case_service.list_cases()
         for c in self._sidebar_cases:
             self.sidebar_list.addItem(c.name)
+        if not self._sidebar_cases:
+            self.status_bar.showMessage("Welcome: create your first case to start mission intake and guided collection.")
 
     def _on_sidebar_case_changed(self, row: int):
         if row < 0 or row >= len(self._sidebar_cases):
@@ -227,11 +299,149 @@ class MainWindow(QMainWindow):
         self._on_case_selected(case)
 
     def _on_case_selected(self, case: Case):
+        self.case_service.refresh_case_leads(case.id)
+        case = self.case_service.get_case(case.id)
         self.current_case = case
         self.graph_panel.load_case(case)
         self.report_panel.load_case(case)
-        self.findings_panel.load_findings(case.findings)
+        self.lead_workspace_panel.load_case(case)
+        self.search_builder_panel.load_case(case)
+        self.entity_research_panel.load_case(case)
+        self.timeline_panel.load_case(case)
+        self.findings_panel.load_case(case)
         self.status_bar.showMessage(f"Active case: {case.name}")
+
+    def _on_case_updated(self, case: Case):
+        self._refresh_sidebar()
+        self._on_case_selected(case)
+
+    def _on_finding_triage_update(self, finding_id: str, state_value: str, analyst_note: str):
+        if self.current_case is None:
+            return
+
+        self.case_service.update_finding_triage(
+            case_id=self.current_case.id,
+            finding_id=finding_id,
+            review_state=FindingReviewState(state_value),
+            analyst_note=analyst_note,
+        )
+
+        self.current_case = self.case_service.get_case(self.current_case.id)
+        self.findings_panel.load_case(self.current_case)
+        self.report_panel.load_case(self.current_case)
+        self.lead_workspace_panel.load_case(self.current_case)
+        self.search_builder_panel.load_case(self.current_case)
+        self.entity_research_panel.load_case(self.current_case)
+        self.timeline_panel.load_case(self.current_case)
+        self.case_panel._populate_detail(self.current_case)
+        self.status_bar.showMessage(f"Finding triage updated: {state_value}")
+
+    def _on_finding_decision_update(
+        self,
+        finding_id: str,
+        decision_state_value: str,
+        confidence: float,
+        rationale: str,
+    ):
+        if self.current_case is None:
+            return
+
+        self.case_service.update_finding_decision(
+            self.current_case.id,
+            finding_id,
+            decision_state=FindingDecisionState(decision_state_value),
+            decision_confidence=confidence,
+            decision_rationale=rationale,
+        )
+        self._reload_case_after_convergence_update(
+            f"Finding decision updated: {decision_state_value}"
+        )
+
+    def _on_finding_correlate(
+        self,
+        finding_id: str,
+        evidence_id: str,
+        rationale: str,
+        confidence: float,
+    ):
+        if self.current_case is None:
+            return
+
+        self.case_service.correlate_finding_to_evidence(
+            self.current_case.id,
+            finding_id,
+            evidence_id,
+            rationale=rationale,
+            support_confidence=confidence,
+        )
+        self._reload_case_after_convergence_update("Finding correlated to evidence")
+
+    def _on_finding_promote(self, finding_id: str, rationale: str, confidence: float):
+        if self.current_case is None:
+            return
+
+        evidence, _, created = self.case_service.promote_finding_to_evidence(
+            self.current_case.id,
+            finding_id,
+            rationale=rationale,
+            support_confidence=confidence,
+        )
+        if created:
+            msg = f"Finding promoted to evidence: {evidence.id[:8]}"
+        else:
+            msg = "Finding already promoted; linked to existing evidence"
+        self._reload_case_after_convergence_update(msg)
+
+    def _on_evidence_attachment(self, evidence_id: str, file_path: str, provenance_note: str):
+        if self.current_case is None:
+            return
+
+        self.case_service.attach_file_to_evidence(
+            self.current_case.id,
+            evidence_id,
+            file_path,
+            provenance_note=provenance_note,
+        )
+        self._reload_case_after_convergence_update("Evidence attachment saved")
+
+    def _on_public_media_capture(
+        self,
+        finding_id: str,
+        evidence_id: str,
+        source_url: str,
+        media_title: str,
+        media_type: str,
+        provenance_note: str,
+        screenshot_path: str,
+    ):
+        if self.current_case is None:
+            return
+
+        self.case_service.capture_public_media_evidence(
+            self.current_case.id,
+            source_url,
+            finding_id=finding_id,
+            evidence_id=evidence_id or None,
+            media_title=media_title,
+            media_type=media_type,
+            provenance_note=provenance_note,
+            screenshot_file_path=screenshot_path,
+        )
+        self._reload_case_after_convergence_update("Public-media evidence capture saved")
+
+    def _reload_case_after_convergence_update(self, status_message: str) -> None:
+        if self.current_case is None:
+            return
+
+        self.current_case = self.case_service.get_case(self.current_case.id)
+        self.findings_panel.load_case(self.current_case)
+        self.report_panel.load_case(self.current_case)
+        self.lead_workspace_panel.load_case(self.current_case)
+        self.search_builder_panel.load_case(self.current_case)
+        self.entity_research_panel.load_case(self.current_case)
+        self.timeline_panel.load_case(self.current_case)
+        self.case_panel._populate_detail(self.current_case)
+        self.status_bar.showMessage(status_message)
 
     def _populate_case_detail(self, case: Case) -> None:
         """Refresh the case detail view inside CasePanel for the given case."""
@@ -308,7 +518,11 @@ class MainWindow(QMainWindow):
         self.start_btn.setEnabled(False)
 
         self.worker = InvestigationWorker(
-            self.investigation_service, target, preset=preset, adapter_names=adapter_names
+            self.investigation_service,
+            target,
+            preset=preset,
+            adapter_names=adapter_names,
+            case_id=self.current_case.id if self.current_case is not None else None,
         )
         self.worker.finding_found.connect(self._on_finding)
         self.worker.progress.connect(lambda pct, msg: self.progress_widget.update(pct, msg))
@@ -326,19 +540,59 @@ class MainWindow(QMainWindow):
         self.results_table.setItem(row, 3, QTableWidgetItem(finding.adapter_name))
         self.results_table.setItem(row, 4, QTableWidgetItem(finding.description[:80]))
 
-    def _on_investigation_finished(self, findings: list[Finding]):
+    def _on_investigation_finished(self, result: dict):
+        findings: list[Finding] = result.get("findings", [])
+        adapter_runs = result.get("adapter_runs", [])
+        failed_runs = sum(1 for run in adapter_runs if run.status == AdapterRunStatus.FAILED)
+        successful_runs = sum(1 for run in adapter_runs if run.status == AdapterRunStatus.COMPLETE)
+
         if self.current_case is not None:
+            self.case_service.save_adapter_runs(self.current_case.id, adapter_runs)
             added, skipped = self.case_service.add_findings_batch(self.current_case.id, findings)
-            msg = f"Investigation complete — {len(added)} new finding(s)"
+            msg = (
+                f"Investigation complete — {len(added)} new finding(s), "
+                f"{successful_runs}/{len(adapter_runs)} adapter(s) succeeded"
+            )
+            if failed_runs:
+                msg += f"  ({failed_runs} failed)"
             if skipped:
                 msg += f"  ({skipped} duplicate(s) skipped)"
             self.status_bar.showMessage(msg)
             # Reload case and refresh all dependent panels
             self.current_case = self.case_service.get_case(self.current_case.id)
-            self.findings_panel.load_findings(self.current_case.findings)
+            self.search_builder_panel.load_case(self.current_case)
+            self.entity_research_panel.load_case(self.current_case)
+            self.lead_workspace_panel.load_case(self.current_case)
+            self.findings_panel.load_case(self.current_case)
             self.graph_panel.load_case(self.current_case)
+            self.timeline_panel.load_case(self.current_case)
             self.report_panel.load_case(self.current_case)
+            self.case_panel._populate_detail(self.current_case)
         else:
-            self.status_bar.showMessage(
-                f"Investigation complete — {len(findings)} finding(s)  (select a case to save)"
+            msg = (
+                f"Investigation complete — {len(findings)} finding(s), "
+                f"{successful_runs}/{len(adapter_runs)} adapter(s) succeeded"
             )
+            if failed_runs:
+                msg += f"  ({failed_runs} failed)"
+            self.status_bar.showMessage(
+                msg + "  (select a case to save)"
+            )
+
+    def _open_tab_by_name(self, tab_name: str) -> None:
+        for idx in range(self.tabs.count()):
+            if self.tabs.tabText(idx) == tab_name:
+                self.tabs.setCurrentIndex(idx)
+                return
+
+    def _on_research_pivot_requested(self, entity_type: str, value: str) -> None:
+        self._open_tab_by_name("Entity Research")
+        self.entity_research_panel.seed_pivot(entity_type, value)
+
+    def _on_email_pivot_requested(self, value: str) -> None:
+        self._open_tab_by_name("Search Builder")
+        self.search_builder_panel.seed_email_pivot(value)
+
+    def _on_username_pivot_requested(self, value: str) -> None:
+        self._open_tab_by_name("Search Builder")
+        self.search_builder_panel.seed_username_pivot(value)

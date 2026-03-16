@@ -1,37 +1,92 @@
-# OSINT Research Platform
+# silver-octo-umbrella
 
+Local-first desktop investigation workbench built with Python and PySide6.
 
-A desktop OSINT workbench for solo investigators and analysts.  Built with Python 3.12+ and PySide6, it provides a structured GUI workflow for open-source intelligence investigations: create a case, add targets, run adapters, review findings, inspect relationships in a graph, and export a report.
+The application supports a complete analyst loop:
+- create and manage cases
+- add targets and notes
+- run modular adapters against targets
+- review findings with filtering and detail views
+- inspect entity relationships in a graph
+- export case reports (HTML, JSON, CSV)
 
----
+All built-in adapters are currently offline mock adapters. The GUI, services, storage, workflow orchestration, and reporting are real.
 
-## Current Status (MVP — v0.1)
+## Product status
 
-The core end-to-end workflow is functional:
+The repository is now beyond basic scaffold state and includes an end-to-end, persisted adapter execution history workflow.
 
-| Step | Status |
-|------|--------|
-| Create / load / delete cases | ✅ Working |
-| Add targets (domain, IP, email, username, URL, document, org) | ✅ Working |
-| Add analyst notes | ✅ Working |
-| Run adapters (with per-adapter progress feedback) | ✅ Working |
-| Deduplicated finding storage | ✅ Working |
-| Findings panel with filter/sort/detail view | ✅ Working |
-| Entity-based relationship graph (IP, subdomain, org, software…) | ✅ Working |
-| HTML / JSON / CSV report export | ✅ Working |
-| Reports include notes, entity summary, grouped findings, citations | ✅ Working |
-| Adapter run log (duration, status, error) | ✅ Working |
-| SQLite persistence with full round-trip reload | ✅ Working |
+Recent sprint uplift:
+- standardized adapter execution metadata per run (status, timings, duration, finding count, error)
+- resilient partial-failure behavior (one adapter can fail without aborting investigation)
+- finding-to-run traceability via `adapter_run_id`
+- persisted adapter run history attached to cases
+- report run-log section tied to persisted run records
 
-**All adapters are mock/offline** — they return realistic simulated data; no network calls are made and no API keys are required.
+Sprint 2.1 findings triage uplift:
+- durable finding review states (`NEW`, `REVIEWED`, `FLAGGED`, `DISMISSED`)
+- persisted analyst notes per finding
+- service-backed filtering and sorting for triage workflows
+- findings workspace with quick triage actions and richer provenance-focused detail view
+- case-level triage summary metrics (including high/critical unreviewed count)
+- report sections for flagged and dismissed findings with triage-state breakdown
 
----
+Sprint 3 guided search builder uplift:
+- novice-friendly guided search workspace for structured Google query construction
+- service-backed query generation with explanations and browser handoff URLs
+- reusable query recipes for common OSINT discovery intents
+- persisted case-linked saved searches with load, duplicate, and delete lifecycle actions
+- case-level guided search activity metrics
+- report section for guided search activity (query, rationale, intent, provider, notes)
 
-## Quick Start
+Sprint 4 entity research and promotion uplift:
+- case-native Entity Research workspace tab for email/IP/username investigation
+- concurrent multi-provider orchestration review with provider execution metrics
+- analyst-grade structured review queue with provenance and key-field visibility
+- evidence promotion controls with reliability grading and analyst-note attachment
+- duplicate-safe promotion pipeline with deterministic fingerprinting
+- case-level entity research continuity metrics surfaced in the Cases panel
+- report sections for entity research activity and promoted research evidence
+
+Sprint 5 timeline and reliability hardening uplift:
+- unified case activity timeline service covering searches, runs, findings, research, and evidence milestones
+- dedicated Timeline workspace tab with chronological event drill-in
+- case panel recent-activity view for fast continuity checks
+- chronology-aware report section that communicates investigation progression over time
+- deterministic timeout boundaries for adapter runs and provider queries to reduce hang-prone behavior
+
+Sprint 6 mission and dashboard uplift:
+- durable mission intake model (mission brief, objectives, hypotheses, scope, constraints, risk and legal notes)
+- explicit persisted workflow stages (`INTAKE`, `COLLECTION`, `REVIEW`, `REPORTING`, `ARCHIVE_READY`)
+- case dashboard with timeline health, high-risk pressure, search/research activity, evidence growth, and readiness signals
+- guided next actions and checklist-based workflow support to reduce operator overwhelm
+- featured high-value collection pivots (reverse phone lookup, email pivots, username pivots) integrated with Entity Research and Search Builder
+- improved non-technical desktop usability with in-app quick start guidance and clearer first-run messaging
+
+Sprint 7 unified lead workspace uplift:
+- merged Lead Workspace tab that unifies targets and entities into one subject-of-interest surface
+- durable lead lifecycle model (`NEW`, `ACTIVE`, `NEEDS_REVIEW`, `CORROBORATED`, `DEPRIORITIZED`, `CLOSED`)
+- lead profile metadata for priority, owner, confidence, context, blocker notes, and mission relevance
+- lead pivot drill-ins linking findings, evidence, searches, runs, and timeline activity from one place
+- task-to-lead linkage so mission checklist execution is tied to concrete operational subjects
+- lead-aware blocker/readiness explainers to reduce "not ready" ambiguity
+
+Sprint 8 evidence/finding convergence uplift:
+- durable finding-to-evidence correlation links with rationale, origin, and support confidence
+- explicit analyst decision state on findings (`PENDING_REVIEW`, `CORRELATED`, `PROMOTED`, `NEEDS_MORE_SUPPORT`, `LOW_CONFIDENCE`, `DISMISSED`, `NOT_ACTIONABLE`)
+- confidence-aware triage workflow with finding decision updates persisted and report-visible
+- structured findings workflow actions to correlate against existing evidence or promote findings into new evidence
+- first-class evidence attachment support for screenshots/files and URL-based public-media references
+- integrated public-web source platform context (including YouTube/Instagram/Snapchat/Facebook/Threads URL capture)
+- lead and dashboard support-maturity signals (correlated findings, unsupported findings, low-confidence backlog, unlinked evidence)
+- attachment-aware readiness signals (evidence missing support artifacts)
+- convergence-aware report sections for supported claims and unresolved support gaps
+
+## Quick start
 
 ### Requirements
-
 - Python 3.12+
+- pip
 
 ### Install
 
@@ -41,413 +96,132 @@ cd silver-octo-umbrella
 pip install -r requirements.txt
 ```
 
-### Run the application
+### Run app
 
 ```bash
 python app/main.py
 ```
 
-### Run the tests
+### Run tests
 
 ```bash
 python -m pytest tests/ -v
 ```
 
----
+## Investigation workflow
 
-## Workflow
+1. Open the Cases tab and create a case.
+2. Add one or more targets and notes.
+3. Open Investigation tab, choose target type and value.
+4. Run either selected adapters or a preset.
+5. Review findings and adapter outcomes.
+6. Open Findings tab for triage actions, aggressive filtering, sorting, and analyst notes.
+7. Open Search Builder tab to generate guided advanced searches and save them to the case.
+8. Open Entity Research tab to run provider-backed research and promote selected evidence.
+9. Open Lead Workspace tab to manage lifecycle state and pivot from each lead to findings, evidence, searches, runs, and timeline context.
+10. Use Lead Workspace quick actions for reverse phone lookup, email pivots, and username pivots.
+11. Open Findings tab detail area to set decision state/confidence, correlate findings to existing evidence, or promote findings into durable evidence.
+12. Add screenshot/file attachments to evidence and capture public-media references by URL from the Findings workflow.
+13. Open Timeline tab to review chronology, including decision, correlation, and attachment capture activity.
+14. Open Graph tab for relationship visualization.
+15. Export report in Reports tab.
 
-1. **Cases tab** — click *New Case* to create a case.  Select it in the sidebar.
-2. **Cases tab** — add one or more targets (domain, IP, username, etc.) and optional analyst notes.
-3. **Investigation tab** — set the target type/value and either choose a preset or check individual adapters, then click *▶ Start Investigation*.  If a case is active the target is automatically saved to it.
-4. **Findings tab** — filter by type or severity; click a row to see the full detail panel.
-5. **Graph tab** — click *Refresh Graph* to render the entity relationship graph (requires `pyvis` + `PySide6-WebEngine`).
-6. **Reports tab** — choose HTML/JSON/CSV, click *Generate Report*, then *Open Report*.
+## Architecture overview
 
----
+- `app/models`:
+  - domain models for case, target, finding, notes, evidence, adapter runs
+- `app/storage`:
+  - SQLite persistence and schema compatibility checks
+- `app/services`:
+  - case lifecycle, adapter orchestration, findings triage, normalization, graph derivation, reporting
+- `app/core/adapters`:
+  - adapter contract and built-in mock adapters
+- `app/gui`:
+  - desktop UI panels and background worker orchestration
+- `app/reports/templates`:
+  - report templates
+- `tests`:
+  - model, adapter, service, and storage coverage
 
-## Architecture
+## Adapter execution observability
 
-```
-silver-octo-umbrella/
-├── app/
-│   ├── main.py
-│   ├── models/
-│   │   └── case.py
-│   ├── storage/
-│   │   └── database.py
-│   ├── services/
-│   │   ├── case_service.py
-│   │   ├── investigation_service.py
-│   │   ├── normalization.py
-│   │   ├── graph_service.py
-│   │   └── report_service.py
-│   ├── core/
-│   │   └── adapters/
-│   │       ├── base.py
-│   │       ├── dns_adapter.py
-│   │       ├── cert_adapter.py
-│   │       ├── http_adapter.py
-│   │       ├── social_adapter.py
-│   │       ├── subdomain_adapter.py
-│   │       └── metadata_adapter.py
-│   ├── gui/
-│   │   ├── main_window.py
-│   │   ├── case_panel.py
-│   │   ├── findings_panel.py
-│   │   ├── graph_panel.py
-│   │   ├── report_panel.py
-│   │   ├── workers.py
-│   │   └── widgets/
-│   │       ├── finding_card.py
-│   │       ├── progress_widget.py
-│   │       └── target_input.py
-│   └── reports/
-│       └── templates/
-│           └── report.html.j2
-└── tests/
-    ├── test_models.py
-    ├── test_adapters.py
-    ├── test_services.py
-    └── test_storage.py
-```
+Each adapter execution now emits and persists a run record with:
+- run id
+- adapter name
+- target id
+- status (`COMPLETE` or `FAILED`)
+- started and completed timestamps
+- duration in seconds
+- finding count
+- error message (if failed)
 
----
+Each finding produced by an adapter run now includes `adapter_run_id`, enabling traceability from finding to concrete run instance.
 
-## Adapters
+## Reporting model
 
-### Built-in adapters
+HTML report includes:
+- mission framing section with workflow stage and checklist progress
+- operational snapshot with timeline health, risk pressure, and pivot activity maturity
+- case summary metrics
+- triage-state breakdown
+- flagged findings section
+- active (non-dismissed) findings queue
+- dismissed findings section
+- guided search activity section
+- case activity timeline section
+- phone/email pivot activity counters
+- entity research workspace activity section
+- promoted research evidence section
+- finding-evidence convergence summary section
+- evidence attachments/public-media reference section
+- major supported findings section with confidence and rationale context
+- evidence needing finding correlation section
+- subjects of interest section with lifecycle/priority/confidence/context and link coverage
+- targets and notes
+- discovered entities
+- findings with review state and run linkage
+- finding run IDs
+- adapter run log with status/timing/error details
+- source citations
 
-| Name | Target types | Data returned |
-|------|-------------|---------------|
-| `dns` | DOMAIN, URL | A/AAAA/MX/NS/TXT records |
-| `cert` | DOMAIN, URL | TLS cert details, SANs, historical count |
-| `http` | DOMAIN, URL, IP | Server software, technologies, missing headers, path enumeration |
-| `subdomain` | DOMAIN | Active subdomains with resolved IPs |
-| `social` | USERNAME, EMAIL | Profile URLs across 6 platforms |
-| `metadata` | DOCUMENT, URL | Author, software, GPS coords, revision history |
+JSON report exports full case model. CSV report exports flattened finding rows.
 
-### Mock vs. real
+## Mock adapters and extension path
 
-All adapters are **mock-only** and safe to run offline.  The output is designed to be realistic and structurally identical to what real adapters would return.
+Built-in adapters (`dns`, `cert`, `http`, `social`, `subdomain`, `metadata`) are mock-only by design and do not make live network calls.
 
-### Adding an adapter
-
-1. Create `app/core/adapters/my_adapter.py` inheriting from `BaseAdapter`.
+To add a new adapter:
+1. Create adapter class under `app/core/adapters` inheriting from `BaseAdapter`.
 2. Set `name`, `description`, and `supported_target_types`.
-3. Implement `async def run(self, target: Target) -> list[Finding]`.
-4. Register it in `MainWindow._setup_services()` and add a checkbox in `_build_investigation_tab()`.
-5. Optionally add it to relevant `PRESET_ADAPTERS` entries in `investigation_service.py`.
-
-```python
-from app.core.adapters.base import BaseAdapter
-from app.models.case import Finding, FindingType, Severity, Target, TargetType
-
-class MyAdapter(BaseAdapter):
-    name = "myadapter"
-    description = "Does something useful"
-    supported_target_types = [TargetType.DOMAIN]
-
-    async def run(self, target: Target) -> list[Finding]:
-        return [
-            Finding(
-                target_id=target.id,
-                adapter_name=self.name,
-                finding_type=FindingType.GENERIC,
-                title="Example finding",
-                description="...",
-                severity=Severity.INFO,
-            )
-        ]
-```
-
----
-
-## Investigation Presets
-
-| Preset | Adapters |
-|--------|---------|
-| Domain Intelligence | dns, cert, http, subdomain |
-| Org Footprint | dns, cert, http, subdomain, social |
-| Username Investigation | social |
-| Document Metadata Audit | metadata |
-| Infrastructure Mapping | dns, http, subdomain |
-
----
-
-## Data Model Highlights
-
-### Finding deduplication
-
-A finding is considered a duplicate if another finding in the same case shares the same `(adapter_name, finding_type, title)`.  Duplicates are silently skipped.  Running an investigation twice against the same case is safe.
-
-### Entity extraction (`app/services/normalization.py`)
-
-Raw `Finding.data` dicts are parsed into typed entities used by the graph and HTML report:
-
-- **ip** — DNS A/AAAA records and subdomain resolver results
-- **subdomain** — cert SANs and subdomain enumeration
-- **domain** — MX/NS records
-- **organization** — cert issuers and document metadata
-- **software** — HTTP server/technology detection
-- **person** — document author metadata
-- **platform** — social profile discovery
-
----
-
-## Graph Visualization
-
-Requires `pyvis` (in requirements) and `PySide6-WebEngine`:
-
-```bash
-pip install PySide6-WebEngine
-```
-
-If either package is missing the graph panel shows a safe fallback message.
-
----
-
-## What is mock / what is real
-
-| Component | Status |
-|-----------|--------|
-| GUI, storage, services, workflow | Real — fully functional |
-| All 6 adapters | Mock — offline, realistic simulated data |
-
----
-
-## What to build next
-
-- Real network-backed DNS (via `dnspython`)
-- Real cert transparency via `crt.sh` API
-- Real HTTP fingerprinting via `httpx` response headers
-- Real subdomain enumeration (DNS brute-force or third-party)
-- Timeline view ordered by `collected_at`
-- PDF report export
-- Multi-target investigation (run all case targets in one click)
-- Case import/export (JSON)
-
----
-
-## Installation
-
-### Requirements
-
-- Python 3.12+
-- pip
-
-### Steps
-
-```bash
-# Clone the repository
-git clone https://github.com/timedrapery/silver-octo-umbrella.git
-cd silver-octo-umbrella
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run the application
-python app/main.py
-```
-
----
-
-## Architecture
-
-```
-silver-octo-umbrella/
-├── app/
-│   ├── main.py                     # Application entry point
-│   ├── gui/
-│   │   ├── main_window.py          # Main application window (dark-themed QMainWindow)
-│   │   ├── case_panel.py           # Case management UI
-│   │   ├── findings_panel.py       # Findings explorer (table + detail view)
-│   │   ├── graph_panel.py          # Relationship graph viewer (pyvis + WebEngineView)
-│   │   ├── report_panel.py         # Report generation UI
-│   │   ├── workers.py              # QThread workers for async investigations
-│   │   └── widgets/
-│   │       ├── finding_card.py     # Finding detail card widget
-│   │       ├── progress_widget.py  # Progress bar + message widget
-│   │       └── target_input.py     # Target type + value input widget
-│   ├── core/
-│   │   └── adapters/
-│   │       ├── base.py             # BaseAdapter abstract class
-│   │       ├── dns_adapter.py      # DNS / domain intelligence
-│   │       ├── cert_adapter.py     # Certificate transparency
-│   │       ├── http_adapter.py     # HTTP fingerprinting
-│   │       ├── social_adapter.py   # Social account discovery
-│   │       ├── subdomain_adapter.py# Subdomain enumeration
-│   │       └── metadata_adapter.py # Document metadata extraction
-│   ├── models/
-│   │   └── case.py                 # Pydantic v2 data models
-│   ├── services/
-│   │   ├── case_service.py         # Case CRUD operations
-│   │   ├── investigation_service.py# Adapter orchestration + presets
-│   │   ├── report_service.py       # Report generation (HTML/JSON/CSV)
-│   │   └── graph_service.py        # Relationship graph builder (networkx + pyvis)
-│   ├── storage/
-│   │   └── database.py             # SQLite storage layer
-│   └── reports/
-│       └── templates/
-│           ├── report.html.j2      # HTML report template
-│           └── report_pdf.html.j2  # PDF-optimized report template
-├── tests/
-│   ├── test_models.py
-│   ├── test_adapters.py
-│   ├── test_services.py
-│   └── test_storage.py
-├── requirements.txt
-└── pyproject.toml
-```
-
-### Key design patterns
-
-| Layer | Technology | Purpose |
-|-------|-----------|---------|
-| GUI | PySide6 | Desktop interface, dark theme |
-| Models | Pydantic v2 | Validated, serializable data structures |
-| Storage | SQLite (sqlite3) | Persistent case and finding storage |
-| Async | asyncio + QThread | Non-blocking investigations |
-| Visualization | networkx + pyvis | Interactive relationship graphs |
-| Reports | Jinja2 | Templated HTML/PDF reports |
-
----
-
-## How to Add New OSINT Modules
-
-1. Create a new file in `app/core/adapters/`, e.g. `whois_adapter.py`.
-
-2. Subclass `BaseAdapter` and implement the `run` method:
-
-```python
-import asyncio
-from app.core.adapters.base import BaseAdapter
-from app.models.case import Finding, FindingType, Severity, Target, TargetType
-
-class WhoisAdapter(BaseAdapter):
-    name = "whois"
-    description = "Retrieves WHOIS registration data for domain targets."
-    supported_target_types = [TargetType.DOMAIN]
-
-    async def run(self, target: Target) -> list[Finding]:
-        await asyncio.sleep(1)  # Replace with real network call
-        return [
-            Finding(
-                target_id=target.id,
-                adapter_name=self.name,
-                finding_type=FindingType.DNS,
-                title=f"WHOIS: {target.value}",
-                description="Registrar: Example Registrar Inc.",
-                data={"registrar": "Example Registrar Inc.", "created": "2010-01-01"},
-                severity=Severity.INFO,
-                source_url=f"https://whois.iana.org/{target.value}",
-                source_name="IANA WHOIS",
-            )
-        ]
-```
-
-3. Register the adapter in `app/gui/main_window.py` inside `_setup_services()`:
-
-```python
-from app.core.adapters.whois_adapter import WhoisAdapter
-
-self.investigation_service = InvestigationService([
-    DnsAdapter(), CertAdapter(), HttpAdapter(),
-    SocialAdapter(), SubdomainAdapter(), MetadataAdapter(),
-    WhoisAdapter(),   # ← add here
-])
-```
-
-4. Add a checkbox for it in `_build_investigation_tab()`:
-
-```python
-for name in ["dns", "cert", "http", "social", "subdomain", "metadata", "whois"]:
-```
-
----
-
-## How to Run Investigations
-
-1. **Start the application:**
-   ```bash
-   python app/main.py
-   ```
-
-2. **Create a case:** Click **+ New Case** in the left sidebar and enter a name.
-
-3. **Open the Investigation tab.**
-
-4. **Enter a target:**
-   - Select the target type (Domain, Username, Email, IP, URL, Organization, Document)
-   - Enter the target value (e.g. `example.com`)
-
-5. **Run adapters:**
-   - Click a **preset button** for a guided workflow (Domain Intel, Org Footprint, etc.)
-   - Or select individual adapters using the checkboxes and click **▶ Start Investigation**
-
-6. **View findings:** Switch to the **Findings** tab to explore all collected findings, filter by severity, and view raw data.
-
-7. **Explore relationships:** Switch to the **Graph** tab to view an interactive entity relationship graph.
-
----
-
-## How to Export Reports
-
-1. Switch to the **Reports** tab.
-2. Select the desired output format: **HTML**, **JSON**, or **CSV**.
-3. Click **Export Report** and choose a save location.
-4. HTML reports include an executive summary, findings table, and source citations.
-
----
-
-## Investigation Presets
-
-| Preset | Adapters Used | Best For |
-|--------|--------------|----------|
-| Domain Intelligence | dns, cert, http, subdomain | Domain investigation |
-| Organization Footprint | dns, cert, http, subdomain, social | Company research |
-| Username Investigation | social | Social media presence |
-| Infrastructure Mapping | dns, cert, subdomain, http | Network mapping |
-| Document Metadata Audit | metadata | Document analysis |
-
----
-
-## Data Models
-
-| Model | Fields |
-|-------|--------|
-| `Case` | id, name, description, targets, findings, notes, evidence, tags, status, created_at, updated_at |
-| `Target` | id, type (TargetType), value, created_at, notes, tags |
-| `Finding` | id, target_id, adapter_name, finding_type, title, description, data, severity, source_url, source_name, collected_at, tags |
-| `Note` | id, case_id, content, created_at, tags |
-| `Evidence` | id, case_id, finding_id, file_path, description, collected_at |
-
----
-
-## Running Tests
-
-```bash
-pip install -r requirements.txt
-python -m pytest tests/ -v
-```
-
-All tests use mock data and do not require external network access.
-
----
-
-## Use Cases
-
-- **Investigative journalism** — Research organizations, domains, and public figures
-- **Cybersecurity research** — Map attack surfaces and infrastructure
-- **Digital footprint analysis** — Audit your own public exposure
-- **Brand monitoring** — Track mentions and domain registrations
-- **Threat intelligence** — Aggregate indicators of compromise
-- **Corporate due diligence** — Research counterparties
-- **Academic research** — Structured data collection from public sources
-
----
-
-## License
-
-MIT
-
+3. Implement `async run(target)` returning a list of `Finding`.
+4. Register adapter in main window service setup.
+5. Optionally include it in investigation presets.
+
+The current adapter contract is intentionally compatible with future real integrations.
+
+## What is intentionally not solved yet
+
+- multi-target batch investigations
+- case bundle import/export
+- multi-analyst assignment and triage audit timeline
+- network-backed real adapters
+
+## Documents
+
+- Implementation plan: `docs/IMPLEMENTATION_PLAN.md`
+- Sprint summary: `docs/SPRINT_1_SUMMARY.md`
+- Sprint 2.1 plan: `docs/SPRINT_2_1_PLAN.md`
+- Sprint 2.1 summary: `docs/SPRINT_2_1_SUMMARY.md`
+- Sprint 3 plan: `docs/SPRINT_3_PLAN.md`
+- Sprint 3 summary: `docs/SPRINT_3_SUMMARY.md`
+- Sprint 4 plan: `docs/SPRINT_4_PLAN.md`
+- Sprint 4 summary: `docs/SPRINT_4_SUMMARY.md`
+- Sprint 5 plan: `docs/SPRINT_5_PLAN.md`
+- Sprint 5 summary: `docs/SPRINT_5_SUMMARY.md`
+- Sprint 6 plan: `docs/SPRINT_6_PLAN.md`
+- Sprint 6 summary: `docs/SPRINT_6_SUMMARY.md`
+- Sprint 7 plan: `docs/SPRINT_7_PLAN.md`
+- Sprint 7 summary: `docs/SPRINT_7_SUMMARY.md`
+- Sprint 8 plan: `docs/SPRINT_8_PLAN.md`
+- Sprint 8 summary: `docs/SPRINT_8_SUMMARY.md`
+- Long-term product plan: `docs/LONG_TERM_PRODUCT_PLAN.md`
