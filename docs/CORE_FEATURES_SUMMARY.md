@@ -52,6 +52,6 @@
   - entity/evidence persistence and delete flows
 
 ## 4. Notes and tradeoffs
-- Provider adapters currently support environment-configured endpoints, with deterministic mock fallbacks for offline/test reliability.
+- Provider adapters support environment-configured endpoints, and built-in public fallbacks return only observed data rather than fabricated records.
 - ManagedNetworkClient is available as the centralized network layer and can be reused by additional adapters and workflows.
 - Evidence/file path behavior remains backward-compatible to avoid breaking existing flows while adding provenance fields.

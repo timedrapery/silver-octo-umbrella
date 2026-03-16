@@ -10,7 +10,7 @@ The application supports a complete analyst loop:
 - inspect entity relationships in a graph
 - export case reports (HTML, JSON, CSV)
 
-All built-in adapters are currently offline mock adapters. The GUI, services, storage, workflow orchestration, and reporting are real.
+Built-in adapters now perform live collection against the target itself. The GUI, services, storage, workflow orchestration, and reporting are persisted locally, while adapter and research collection require working network egress.
 
 ## Product status
 
@@ -54,6 +54,15 @@ Sprint 5 timeline and reliability hardening uplift:
 - case panel recent-activity view for fast continuity checks
 - chronology-aware report section that communicates investigation progression over time
 - deterministic timeout boundaries for adapter runs and provider queries to reduce hang-prone behavior
+
+Sprint 9 live collection uplift:
+- built-in DNS adapter now performs DNS-over-HTTPS lookups against live domains
+- HTTP adapter now fingerprints real responses, headers, redirects, and common discovery paths
+- certificate and subdomain adapters now use live TLS handshakes and certificate transparency data
+- metadata adapter now extracts real filesystem or URL metadata instead of fabricated values
+- social adapter now verifies public profiles through platform endpoints rather than generating placeholder accounts
+- breach provider now supports first-class Have I Been Pwned (HIBP) email breach collection
+- entity research providers no longer fabricate fallback evidence when upstream providers are absent
 
 Sprint 6 mission and dashboard uplift:
 - durable mission intake model (mission brief, objectives, hypotheses, scope, constraints, risk and legal notes)
@@ -135,7 +144,7 @@ python -m pytest tests/ -v
 - `app/services`:
   - case lifecycle, adapter orchestration, findings triage, normalization, graph derivation, reporting
 - `app/core/adapters`:
-  - adapter contract and built-in mock adapters
+  - adapter contract and built-in live collection adapters
 - `app/gui`:
   - desktop UI panels and background worker orchestration
 - `app/reports/templates`:
@@ -186,9 +195,17 @@ HTML report includes:
 
 JSON report exports full case model. CSV report exports flattened finding rows.
 
-## Mock adapters and extension path
+## Live adapters and extension path
 
-Built-in adapters (`dns`, `cert`, `http`, `social`, `subdomain`, `metadata`) are mock-only by design and do not make live network calls.
+Built-in adapters (`dns`, `cert`, `http`, `social`, `subdomain`, `metadata`) make live network or local filesystem calls and return only evidence actually observed.
+
+Entity Research providers support endpoint overrides via environment variables:
+- `HIBP_API_KEY`: first-class breach provider credential for Have I Been Pwned email breach queries
+- `BREACH_PROVIDER_ENDPOINT`: optional breach provider override endpoint
+- `INFRA_PROVIDER_ENDPOINT`: optional override for IP enrichment, otherwise public IP enrichment is used
+- `SOCIAL_PROVIDER_ENDPOINT`: optional override for social/entity enrichment, otherwise public platform lookups are used
+
+When a provider cannot really collect, the platform records a failed provider run instead of inventing fallback records.
 
 To add a new adapter:
 1. Create adapter class under `app/core/adapters` inheriting from `BaseAdapter`.
@@ -197,14 +214,14 @@ To add a new adapter:
 4. Register adapter in main window service setup.
 5. Optionally include it in investigation presets.
 
-The current adapter contract is intentionally compatible with future real integrations.
+The current adapter contract is intentionally compatible with deeper commercial or internal integrations.
 
 ## What is intentionally not solved yet
 
 - multi-target batch investigations
 - case bundle import/export
 - multi-analyst assignment and triage audit timeline
-- network-backed real adapters
+- built-in phone-specific breach coverage in the first-class provider path
 
 ## Documents
 

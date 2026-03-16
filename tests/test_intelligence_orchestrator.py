@@ -6,9 +6,11 @@ import time
 import pytest
 
 from app.services.intelligence_orchestrator import (
+    BreachProviderAdapter,
     MultiSourceOrchestrator,
     ResearchEntityRequest,
     ResearchProviderAdapter,
+    SocialProviderAdapter,
     build_research_request,
 )
 from app.services.managed_network_client import ManagedNetworkClient
@@ -139,3 +141,114 @@ class TestMultiSourceOrchestration:
         assert timeout_metric.success is False
         assert "timed out" in timeout_metric.error_message
         assert len(result.evidence_items) == 2
+
+
+class FakeManagedResponse:
+    def __init__(self, status_code: int, json_data):
+        self.status_code = status_code
+        self.json_data = json_data
+
+
+class FakeManagedNetwork:
+    def __init__(self, responses: dict[str, FakeManagedResponse]):
+        self.responses = responses
+
+    async def request_json(self, method: str, url: str, **kwargs):
+        return self.responses[url]
+
+
+class TestBuiltInProviderAdapters:
+    @pytest.mark.asyncio
+    async def test_breach_provider_requires_hibp_or_endpoint_config(self, monkeypatch):
+        monkeypatch.delenv("BREACH_PROVIDER_ENDPOINT", raising=False)
+        monkeypatch.delenv("HIBP_API_KEY", raising=False)
+        provider = BreachProviderAdapter()
+
+        with pytest.raises(RuntimeError, match="HIBP_API_KEY"):
+            await provider.query(
+                ResearchEntityRequest(entity_type="EMAIL", entity_value="analyst@example.com"),
+                FakeManagedNetwork({}),
+            )
+
+    @pytest.mark.asyncio
+    async def test_breach_provider_queries_hibp_and_normalizes_result(self, monkeypatch):
+        monkeypatch.delenv("BREACH_PROVIDER_ENDPOINT", raising=False)
+        monkeypatch.setenv("HIBP_API_KEY", "test-key")
+        provider = BreachProviderAdapter()
+
+        network = FakeManagedNetwork(
+            {
+                "https://haveibeenpwned.com/api/v3/breachedaccount/analyst%40example.com": FakeManagedResponse(
+                    200,
+                    [
+                        {
+                            "Name": "Adobe",
+                            "Title": "Adobe",
+                            "Domain": "adobe.com",
+                            "BreachDate": "2013-10-04",
+                            "AddedDate": "2013-12-04T00:00:00Z",
+                            "PwnCount": 152445165,
+                            "DataClasses": ["Email addresses", "Password hints"],
+                            "IsVerified": True,
+                            "IsFabricated": False,
+                            "IsSensitive": False,
+                        }
+                    ],
+                )
+            }
+        )
+
+        records = await provider.query(
+            ResearchEntityRequest(entity_type="EMAIL", entity_value="analyst@example.com"),
+            network,
+        )
+
+        assert len(records) == 1
+        assert records[0]["provider"] == "haveibeenpwned"
+        assert records[0]["breach_name"] == "Adobe"
+        assert records[0]["indicator"] == "analyst@example.com"
+
+    @pytest.mark.asyncio
+    async def test_breach_provider_non_email_returns_empty(self, monkeypatch):
+        monkeypatch.delenv("BREACH_PROVIDER_ENDPOINT", raising=False)
+        monkeypatch.delenv("HIBP_API_KEY", raising=False)
+        provider = BreachProviderAdapter()
+
+        records = await provider.query(
+            ResearchEntityRequest(entity_type="USERNAME", entity_value="alice"),
+            FakeManagedNetwork({}),
+        )
+
+        assert records == []
+
+    @pytest.mark.asyncio
+    async def test_social_provider_uses_real_lookup_without_fake_fallback(self, monkeypatch):
+        monkeypatch.delenv("SOCIAL_PROVIDER_ENDPOINT", raising=False)
+        provider = SocialProviderAdapter()
+        network = FakeManagedNetwork(
+            {
+                "https://api.github.com/users/alice": FakeManagedResponse(
+                    200,
+                    {
+                        "html_url": "https://github.com/alice",
+                        "followers": 12,
+                        "public_repos": 7,
+                    },
+                )
+            }
+        )
+
+        records = await provider.query(
+            ResearchEntityRequest(entity_type="USERNAME", entity_value="alice"),
+            network,
+        )
+
+        assert records == [
+            {
+                "username": "alice",
+                "platform": "github",
+                "url": "https://github.com/alice",
+                "followers": 12,
+                "public_repos": 7,
+            }
+        ]

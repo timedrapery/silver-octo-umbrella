@@ -4,6 +4,7 @@ import re
 import time
 from abc import ABC, abstractmethod
 from typing import Literal
+from urllib.parse import quote
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -71,12 +72,17 @@ class ResearchProviderAdapter(ABC):
 
 class BreachProviderAdapter(ResearchProviderAdapter):
     name = "breach_provider"
+    _HIBP_ENDPOINT_TEMPLATE = "https://haveibeenpwned.com/api/v3/breachedaccount/{account}"
+    _HIBP_USER_AGENT = "silver-octo-umbrella/1.0"
 
     async def query(
         self,
         request: ResearchEntityRequest,
         network: ManagedNetworkClient,
     ) -> list[dict]:
+        if request.entity_type != "EMAIL":
+            return []
+
         endpoint = os.getenv("BREACH_PROVIDER_ENDPOINT", "").strip()
         if endpoint:
             response = await network.request_json(
@@ -86,11 +92,56 @@ class BreachProviderAdapter(ResearchProviderAdapter):
             )
             if isinstance(response.json_data, list):
                 return [dict(item) for item in response.json_data if isinstance(item, dict)]
-        if request.entity_type == "EMAIL":
-            return [{"indicator": request.entity_value, "collection": "breach_dump", "confidence": "medium"}]
-        if request.entity_type == "PHONE":
-            return [{"phone": request.entity_value, "collection": "public_phone_leads", "confidence": "low"}]
+
+        hibp_api_key = os.getenv("HIBP_API_KEY", "").strip()
+        if not hibp_api_key:
+            raise RuntimeError("HIBP_API_KEY is not configured for breach provider")
+
+        encoded_account = quote(request.entity_value, safe="")
+        response = await network.request_json(
+            "GET",
+            self._HIBP_ENDPOINT_TEMPLATE.format(account=encoded_account),
+            headers={
+                "hibp-api-key": hibp_api_key,
+                "user-agent": self._HIBP_USER_AGENT,
+                "accept": "application/json",
+            },
+            params={"truncateResponse": "false"},
+        )
+
+        if response.status_code == 404:
+            return []
+        if response.status_code in (401, 403):
+            raise RuntimeError("HIBP authentication failed")
+        if response.status_code == 429:
+            raise RuntimeError("HIBP rate limit exceeded")
+        if response.status_code >= 400:
+            raise RuntimeError(f"HIBP request failed with status {response.status_code}")
+
+        if isinstance(response.json_data, list):
+            return [
+                self._normalize_hibp_record(record, request.entity_value)
+                for record in response.json_data
+                if isinstance(record, dict)
+            ]
         return []
+
+    @staticmethod
+    def _normalize_hibp_record(record: dict, email: str) -> dict:
+        return {
+            "indicator": email,
+            "provider": "haveibeenpwned",
+            "breach_name": record.get("Name", ""),
+            "breach_title": record.get("Title", ""),
+            "domain": record.get("Domain", ""),
+            "breach_date": record.get("BreachDate", ""),
+            "added_date": record.get("AddedDate", ""),
+            "pwn_count": record.get("PwnCount", 0),
+            "data_classes": record.get("DataClasses", []),
+            "verified": record.get("IsVerified", False),
+            "fabricated": record.get("IsFabricated", False),
+            "sensitive": record.get("IsSensitive", False),
+        }
 
 
 class InfrastructureProviderAdapter(ResearchProviderAdapter):
@@ -111,7 +162,12 @@ class InfrastructureProviderAdapter(ResearchProviderAdapter):
             if isinstance(response.json_data, list):
                 return [dict(item) for item in response.json_data if isinstance(item, dict)]
         if request.entity_type == "IP":
-            return [{"ip": request.entity_value, "asn": "AS15169", "provider": "Example ISP"}]
+            response = await network.request_json(
+                "GET",
+                f"https://ipwho.is/{request.entity_value}",
+            )
+            if isinstance(response.json_data, dict) and response.json_data.get("success", True):
+                return [dict(response.json_data)]
         return []
 
 
@@ -132,10 +188,33 @@ class SocialProviderAdapter(ResearchProviderAdapter):
             )
             if isinstance(response.json_data, list):
                 return [dict(item) for item in response.json_data if isinstance(item, dict)]
+        if request.entity_type == "EMAIL":
+            lookup_value = request.entity_value.split("@", 1)[0]
+        else:
+            lookup_value = request.entity_value
         if request.entity_type == "USERNAME":
-            return [{"username": request.entity_value, "platform": "github", "url": f"https://github.com/{request.entity_value}"}]
-        if request.entity_type == "PHONE":
-            return [{"phone": request.entity_value, "platform": "public_directory", "url": "https://example.com/phone-lookup"}]
+            github = await network.request_json("GET", f"https://api.github.com/users/{lookup_value}")
+            if isinstance(github.json_data, dict) and github.status_code == 200:
+                return [
+                    {
+                        "username": lookup_value,
+                        "platform": "github",
+                        "url": github.json_data.get("html_url", f"https://github.com/{lookup_value}"),
+                        "followers": github.json_data.get("followers", 0),
+                        "public_repos": github.json_data.get("public_repos", 0),
+                    }
+                ]
+        if request.entity_type == "EMAIL":
+            github = await network.request_json("GET", f"https://api.github.com/users/{lookup_value}")
+            if isinstance(github.json_data, dict) and github.status_code == 200:
+                return [
+                    {
+                        "email": request.entity_value,
+                        "derived_username": lookup_value,
+                        "platform": "github",
+                        "url": github.json_data.get("html_url", f"https://github.com/{lookup_value}"),
+                    }
+                ]
         return []
 
 

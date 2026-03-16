@@ -99,7 +99,7 @@ Outcomes:
 Outcomes:
 - provider/plugin registry with health and configuration checks
 - environment diagnostics (timeouts, proxy health, dependency checks)
-- safer scaling from mock providers to controlled real integrations
+- safer scaling from public/default providers to controlled commercial or internal integrations
 
 ## 6. Dependencies and sequencing
 

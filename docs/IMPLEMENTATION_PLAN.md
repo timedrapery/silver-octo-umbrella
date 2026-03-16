@@ -1,7 +1,7 @@
 # Implementation Plan
 
 ## 1. Executive assessment
-silver-octo-umbrella is a functional local-first desktop investigation prototype with a working GUI, modular mock adapters, persistence, graphing, and report export. Core plumbing exists across models, services, storage, and tests.
+silver-octo-umbrella is a functional local-first desktop investigation platform with a working GUI, modular adapters, persistence, graphing, and report export. Core plumbing exists across models, services, storage, and tests.
 
 It is not yet a credible V1 investigation workbench because adapter execution is weakly observable end-to-end: run-level metadata is not first-class in orchestration, finding-to-run lineage is missing, and failure behavior is not consistently surfaced as durable investigation history.
 
@@ -55,7 +55,7 @@ Create a coherent investigation execution pipeline where each adapter run is tim
 ## 6. Risks and tradeoffs
 - Not introducing multi-target batch execution in this sprint to preserve focus.
 - Not redesigning the entire GUI information architecture; only targeted workflow messaging improvements are included.
-- Existing mock adapters remain mock-only; contract improvements are made to better support future real adapters.
+- Existing adapters should remain contract-compatible while moving toward real collection and away from fabricated placeholder output.
 
 ## 7. Recommended next sprint
 **Findings triage + filtering + review workflow**

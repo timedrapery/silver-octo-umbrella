@@ -2,12 +2,6 @@
 import pytest
 
 from app.core.adapters.base import BaseAdapter
-from app.core.adapters.dns_adapter import DnsAdapter
-from app.core.adapters.cert_adapter import CertAdapter
-from app.core.adapters.http_adapter import HttpAdapter
-from app.core.adapters.social_adapter import SocialAdapter
-from app.core.adapters.subdomain_adapter import SubdomainAdapter
-from app.core.adapters.metadata_adapter import MetadataAdapter
 from app.models.case import (
     ArtifactLinkType,
     AdapterRun,
@@ -73,7 +67,14 @@ def case_service(db):
 
 @pytest.fixture
 def investigation_service():
-    adapters = [DnsAdapter(), CertAdapter(), HttpAdapter(), SocialAdapter(), SubdomainAdapter(), MetadataAdapter()]
+    adapters = [
+        StaticFindingAdapter("dns", [TargetType.DOMAIN], FindingType.DNS),
+        StaticFindingAdapter("cert", [TargetType.DOMAIN], FindingType.CERTIFICATE),
+        StaticFindingAdapter("http", [TargetType.DOMAIN, TargetType.IP], FindingType.HTTP),
+        StaticFindingAdapter("social", [TargetType.USERNAME, TargetType.EMAIL], FindingType.SOCIAL),
+        StaticFindingAdapter("subdomain", [TargetType.DOMAIN], FindingType.SUBDOMAIN),
+        StaticFindingAdapter("metadata", [TargetType.DOCUMENT, TargetType.URL], FindingType.METADATA),
+    ]
     return InvestigationService(adapters)
 
 
@@ -89,6 +90,43 @@ class FailingDomainAdapter(BaseAdapter):
 
     async def run(self, target: Target) -> list[Finding]:
         raise RuntimeError("Simulated failure")
+
+
+class StaticFindingAdapter(BaseAdapter):
+    def __init__(self, name: str, supported_target_types: list[TargetType], finding_type: FindingType):
+        self.name = name
+        self.description = f"Static adapter for {name}"
+        self.supported_target_types = supported_target_types
+        self.finding_type = finding_type
+
+    async def run(self, target: Target) -> list[Finding]:
+        return [
+            Finding(
+                target_id=target.id,
+                adapter_name=self.name,
+                finding_type=self.finding_type,
+                title=f"{self.name} finding",
+                description=f"Deterministic finding for {target.value}",
+                data=self._build_data(target),
+                severity=Severity.INFO,
+                source_name="test-fixture",
+            )
+        ]
+
+    def _build_data(self, target: Target) -> dict:
+        if self.finding_type == FindingType.DNS:
+            return {"record_type": "A", "value": "93.184.216.34"}
+        if self.finding_type == FindingType.CERTIFICATE:
+            return {"common_name": target.value, "issuer": "Fixture CA", "sans": [target.value]}
+        if self.finding_type == FindingType.HTTP:
+            return {"server": "fixture-server", "technologies": ["fixture-tech"]}
+        if self.finding_type == FindingType.SOCIAL:
+            return {"platform": "GitHub", "username": target.value}
+        if self.finding_type == FindingType.SUBDOMAIN:
+            return {"subdomain": f"www.{target.value}", "addresses": ["93.184.216.34"]}
+        if self.finding_type == FindingType.METADATA:
+            return {"filename": target.value.split("/")[-1], "mime_type": "application/pdf"}
+        return {}
 
 
 class HangingDomainAdapter(BaseAdapter):
@@ -798,8 +836,10 @@ class TestInvestigationService:
         assert "dns" in adapter_names
         assert "http" in adapter_names
 
-    async def test_run_preset_document_metadata(self, investigation_service):
-        target = Target(type=TargetType.DOCUMENT, value="/tmp/report.pdf")
+    async def test_run_preset_document_metadata(self, investigation_service, tmp_path):
+        document = tmp_path / "report.pdf"
+        document.write_text("report content", encoding="utf-8")
+        target = Target(type=TargetType.DOCUMENT, value=str(document))
         findings = await investigation_service.run_preset(target, InvestigationPreset.DOCUMENT_METADATA_AUDIT)
         assert len(findings) > 0
         assert all(f.adapter_name == "metadata" for f in findings)
@@ -842,7 +882,9 @@ class TestInvestigationService:
             assert finding.adapter_run_id in run_ids
 
     async def test_execute_investigation_partial_failure_isolated(self):
-        service = InvestigationService([DnsAdapter(), FailingDomainAdapter()])
+        service = InvestigationService(
+            [StaticFindingAdapter("dns", [TargetType.DOMAIN], FindingType.DNS), FailingDomainAdapter()]
+        )
         target = Target(type=TargetType.DOMAIN, value="example.com")
 
         execution = await service.execute_investigation(target, case_id="case-2")

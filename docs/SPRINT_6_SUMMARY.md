@@ -119,7 +119,7 @@ Added/updated deterministic tests for:
 
 ## 10. Tradeoffs and deferred work
 
-- Reverse phone lookup currently uses provider-compatible orchestrator pathways with mock/offline-friendly fallbacks, consistent with repository baseline.
+- Reverse phone lookup currently depends on operator-supplied provider coverage or public pivots; the platform no longer fabricates offline fallback results.
 - Guidance is intentionally lightweight and heuristic-based; full workflow policy engines are deferred.
 - Stage transitions remain practical and editable; strict gate enforcement for every artifact is deferred.
 
