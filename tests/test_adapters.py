@@ -122,7 +122,8 @@ class TestSubdomainAdapter:
         assert len(findings) >= 5
         for f in findings:
             assert f.finding_type == FindingType.SUBDOMAIN
-            assert "example.com" in f.data.get("subdomain", "")
+            subdomain = f.data.get("subdomain", "")
+            assert subdomain.endswith(".example.com") or subdomain == "example.com"
 
 
 class TestMetadataAdapter:
