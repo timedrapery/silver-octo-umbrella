@@ -60,42 +60,143 @@ from app.storage.database import Database
 
 DARK_STYLE = """
 QMainWindow, QWidget {
-    background-color: #1e1e2e;
-    color: #e2e8f0;
-    font-family: "Segoe UI", "SF Pro", sans-serif;
+    background-color: #121722;
+    color: #d9e2ef;
+    font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+    font-size: 13px;
 }
-QMenuBar { background: #2d2d3f; color: #e2e8f0; }
-QMenuBar::item:selected { background: #7c6af7; }
-QMenu { background: #2d2d3f; color: #e2e8f0; border: 1px solid #444; }
-QMenu::item:selected { background: #7c6af7; }
-QTabWidget::pane { border: 1px solid #444; background: #1e1e2e; }
-QTabBar::tab { background: #2d2d3f; color: #a0aec0; padding: 8px 16px; border-radius: 4px 4px 0 0; }
-QTabBar::tab:selected { background: #7c6af7; color: white; }
-QListWidget { background: #2d2d3f; border: 1px solid #444; border-radius: 6px; }
-QListWidget::item:selected { background: #7c6af7; }
+QMenuBar {
+    background: #0f1420;
+    color: #d9e2ef;
+    border-bottom: 1px solid #2b374a;
+}
+QMenuBar::item {
+    padding: 5px 10px;
+    border-radius: 4px;
+}
+QMenuBar::item:selected { background: #1d2838; }
+QMenu {
+    background: #101824;
+    color: #d9e2ef;
+    border: 1px solid #2b374a;
+}
+QMenu::item:selected { background: #2d7a96; }
+QTabWidget::pane {
+    border: 1px solid #2b374a;
+    background: #161d2a;
+    border-radius: 8px;
+}
+QTabBar::tab {
+    background: #1a2231;
+    color: #8ea0b8;
+    padding: 9px 16px;
+    margin-right: 4px;
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+}
+QTabBar::tab:selected {
+    background: #2d7a96;
+    color: #f7fbff;
+    font-weight: 600;
+}
+QListWidget {
+    background: #171f2d;
+    border: 1px solid #2b374a;
+    border-radius: 8px;
+    padding: 4px;
+}
+QListWidget::item {
+    padding: 6px 8px;
+    border-radius: 6px;
+}
+QListWidget::item:selected {
+    background: #2d7a96;
+    color: #f7fbff;
+}
 QPushButton {
-    background: #2d2d3f; color: #e2e8f0; border: 1px solid #555;
-    padding: 6px 14px; border-radius: 6px;
+    background: #1d2838;
+    color: #d9e2ef;
+    border: 1px solid #314157;
+    padding: 7px 14px;
+    border-radius: 7px;
 }
-QPushButton:hover { background: #3d3d5f; }
-QPushButton#startBtn { background: #7c6af7; color: white; font-weight: bold; padding: 10px; }
-QPushButton#startBtn:hover { background: #9b8bff; }
+QPushButton:hover {
+    background: #263348;
+    border-color: #3f5673;
+}
+QPushButton#startBtn {
+    background: #2d7a96;
+    color: #f7fbff;
+    font-weight: 700;
+    padding: 11px;
+    border: 1px solid #3f97b8;
+}
+QPushButton#startBtn:hover { background: #3b90b0; }
 QLineEdit, QComboBox, QTextEdit {
-    background: #2d2d3f; color: #e2e8f0; border: 1px solid #555;
-    border-radius: 4px; padding: 4px 8px;
+    background: #171f2d;
+    color: #d9e2ef;
+    border: 1px solid #314157;
+    border-radius: 6px;
+    padding: 6px 8px;
 }
-QGroupBox { border: 1px solid #444; border-radius: 6px; margin-top: 8px; color: #a0aec0; padding-top: 8px; }
-QGroupBox::title { subcontrol-origin: margin; left: 8px; }
-QTableWidget { background: #2d2d3f; border: 1px solid #444; gridline-color: #444; }
-QHeaderView::section { background: #3d3d5f; color: #e2e8f0; padding: 4px; }
-QProgressBar { background: #2d2d3f; border: 1px solid #555; border-radius: 4px; text-align: center; }
-QProgressBar::chunk { background: #7c6af7; border-radius: 4px; }
-QSplitter::handle { background: #444; }
-QStatusBar { background: #2d2d3f; color: #9ca3af; }
-QScrollBar:vertical { background: #2d2d3f; width: 8px; }
-QScrollBar::handle:vertical { background: #555; border-radius: 4px; }
-QCheckBox { color: #e2e8f0; }
-QRadioButton { color: #e2e8f0; }
+QLineEdit:focus, QComboBox:focus, QTextEdit:focus {
+    border: 1px solid #4ca0bf;
+}
+QGroupBox {
+    border: 1px solid #2b374a;
+    border-radius: 8px;
+    margin-top: 9px;
+    color: #9cb0c9;
+    padding-top: 10px;
+}
+QGroupBox::title {
+    subcontrol-origin: margin;
+    left: 10px;
+    padding: 0 4px;
+}
+QTableWidget {
+    background: #171f2d;
+    border: 1px solid #2b374a;
+    gridline-color: #283446;
+    alternate-background-color: #1a2433;
+}
+QTableWidget::item:selected {
+    background: #2d7a96;
+    color: #f7fbff;
+}
+QHeaderView::section {
+    background: #202b3b;
+    color: #d9e2ef;
+    padding: 6px;
+    border: 0;
+    border-bottom: 1px solid #314157;
+}
+QProgressBar {
+    background: #171f2d;
+    border: 1px solid #314157;
+    border-radius: 5px;
+    text-align: center;
+}
+QProgressBar::chunk {
+    background: #2d7a96;
+    border-radius: 4px;
+}
+QSplitter::handle { background: #2b374a; }
+QStatusBar {
+    background: #0f1420;
+    color: #8ea0b8;
+    border-top: 1px solid #2b374a;
+}
+QScrollBar:vertical {
+    background: #131b28;
+    width: 10px;
+}
+QScrollBar::handle:vertical {
+    background: #30435c;
+    border-radius: 5px;
+}
+QCheckBox { color: #d9e2ef; }
+QRadioButton { color: #d9e2ef; }
 """
 
 
@@ -108,7 +209,7 @@ class MainWindow(QMainWindow):
         self._build_ui()
         self.setStyleSheet(DARK_STYLE)
         self.setWindowTitle("OSINT Research Platform")
-        self.resize(1200, 800)
+        self.resize(1400, 880)
 
     def _setup_services(self):
         self.case_service = CaseService(self.db)
@@ -137,11 +238,12 @@ class MainWindow(QMainWindow):
 
         # Sidebar
         sidebar = QWidget()
-        sidebar.setFixedWidth(200)
+        sidebar.setFixedWidth(230)
         sb_layout = QVBoxLayout(sidebar)
-        sb_layout.setContentsMargins(4, 4, 4, 4)
+        sb_layout.setContentsMargins(8, 8, 8, 8)
+        sb_layout.setSpacing(8)
         sb_label = QLabel("Cases")
-        sb_label.setStyleSheet("font-weight: bold; color: #7c6af7; padding: 4px;")
+        sb_label.setStyleSheet("font-weight: 700; color: #4ca0bf; padding: 4px 6px;")
         self.sidebar_list = QListWidget()
         self.sidebar_list.currentRowChanged.connect(self._on_sidebar_case_changed)
         new_case_btn = QPushButton("+ New Case")
@@ -199,7 +301,7 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(self.graph_panel, "Graph")
         self.tabs.addTab(self.report_panel, "Reports")
         splitter.addWidget(self.tabs)
-        splitter.setSizes([200, 1000])
+        splitter.setSizes([240, 1160])
 
         self._refresh_sidebar()
 

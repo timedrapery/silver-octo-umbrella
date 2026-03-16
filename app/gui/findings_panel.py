@@ -157,7 +157,7 @@ class FindingsPanel(QWidget):
         self.table.horizontalHeader().setStretchLastSection(True)
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        self.table.currentRowChanged.connect(self._on_row_selected)
+        self.table.itemSelectionChanged.connect(self._on_selection_changed)
         splitter.addWidget(self.table)
 
         detail_container = QWidget()
@@ -443,6 +443,9 @@ class FindingsPanel(QWidget):
             self.table.selectRow(0)
         else:
             self.detail_view.clear()
+
+    def _on_selection_changed(self) -> None:
+        self._on_row_selected(self.table.currentRow())
 
     def _on_row_selected(self, row: int):
         if row < 0:

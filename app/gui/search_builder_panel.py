@@ -195,7 +195,7 @@ class SearchBuilderPanel(QWidget):
         self.saved_table.horizontalHeader().setStretchLastSection(True)
         self.saved_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.saved_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        self.saved_table.currentRowChanged.connect(self._load_selected_preview)
+        self.saved_table.itemSelectionChanged.connect(self._load_selected_preview)
         saved_layout.addWidget(self.saved_table)
 
         saved_actions = QHBoxLayout()
