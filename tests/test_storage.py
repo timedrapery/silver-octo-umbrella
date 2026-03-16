@@ -1,11 +1,15 @@
 """Tests for database storage."""
 import pytest
+from datetime import datetime, timezone
 
 from app.models.case import (
+    AdapterRun,
+    AdapterRunStatus,
     Case,
     CaseStatus,
     Finding,
     FindingType,
+    Note,
     Severity,
     Target,
     TargetType,
@@ -161,3 +165,106 @@ class TestFindingStorage:
         db.delete_case(case.id)
         findings = db.get_findings_for_case(case.id)
         assert findings == []
+
+
+# ──────────────────────────── AdapterRun Storage ────────────────────────────
+
+class TestAdapterRunStorage:
+    def _make_run(self, case_id: str, target_id: str, adapter: str = "dns") -> AdapterRun:
+        return AdapterRun(
+            case_id=case_id,
+            target_id=target_id,
+            adapter_name=adapter,
+            status=AdapterRunStatus.COMPLETE,
+            finding_count=5,
+            duration_seconds=1.23,
+        )
+
+    def test_save_and_retrieve_adapter_run(self, db):
+        case = Case(name="Run Test")
+        db.save_case(case)
+        run = self._make_run(case.id, "t1")
+        db.save_adapter_run(run)
+        runs = db.get_adapter_runs_for_case(case.id)
+        assert len(runs) == 1
+        assert runs[0].adapter_name == "dns"
+        assert runs[0].status == AdapterRunStatus.COMPLETE
+        assert runs[0].finding_count == 5
+        assert abs(runs[0].duration_seconds - 1.23) < 0.01
+
+    def test_multiple_runs_for_case(self, db):
+        case = Case(name="Multi Run")
+        db.save_case(case)
+        db.save_adapter_run(self._make_run(case.id, "t1", "dns"))
+        db.save_adapter_run(self._make_run(case.id, "t1", "http"))
+        runs = db.get_adapter_runs_for_case(case.id)
+        assert len(runs) == 2
+        names = {r.adapter_name for r in runs}
+        assert "dns" in names
+        assert "http" in names
+
+    def test_failed_run_stores_error(self, db):
+        case = Case(name="Failed Run")
+        db.save_case(case)
+        run = AdapterRun(
+            case_id=case.id,
+            target_id="t1",
+            adapter_name="cert",
+            status=AdapterRunStatus.FAILED,
+            error_message="Connection timeout",
+        )
+        db.save_adapter_run(run)
+        runs = db.get_adapter_runs_for_case(case.id)
+        assert runs[0].status == AdapterRunStatus.FAILED
+        assert runs[0].error_message == "Connection timeout"
+
+    def test_case_loaded_with_adapter_runs(self, db):
+        case = Case(name="Full Load")
+        db.save_case(case)
+        run = self._make_run(case.id, "t1")
+        db.save_adapter_run(run)
+        loaded = db.load_case(case.id)
+        assert len(loaded.adapter_runs) == 1
+
+    def test_delete_case_removes_adapter_runs(self, db):
+        case = Case(name="Delete Runs")
+        db.save_case(case)
+        db.save_adapter_run(self._make_run(case.id, "t1"))
+        db.delete_case(case.id)
+        runs = db.get_adapter_runs_for_case(case.id)
+        assert runs == []
+
+    def test_update_case_timestamp(self, db):
+        case = Case(name="Timestamp Test")
+        db.save_case(case)
+        before = case.updated_at
+        db.update_case_timestamp(case.id)
+        loaded = db.load_case(case.id)
+        assert loaded.updated_at >= before
+
+
+# ──────────────────────────── Notes Storage ─────────────────────────────────
+
+class TestNotesStorage:
+    def test_save_and_load_notes(self, db):
+        case = Case(name="Note Case")
+        note = Note(case_id=case.id, content="Test observation", tags=["recon"])
+        case.notes = [note]
+        db.save_case(case)
+        loaded = db.load_case(case.id)
+        assert len(loaded.notes) == 1
+        assert loaded.notes[0].content == "Test observation"
+        assert "recon" in loaded.notes[0].tags
+
+    def test_multiple_notes_preserved(self, db):
+        case = Case(name="Multi Note")
+        case.notes = [
+            Note(case_id=case.id, content="First"),
+            Note(case_id=case.id, content="Second"),
+        ]
+        db.save_case(case)
+        loaded = db.load_case(case.id)
+        contents = {n.content for n in loaded.notes}
+        assert "First" in contents
+        assert "Second" in contents
+

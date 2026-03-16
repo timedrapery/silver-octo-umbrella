@@ -19,14 +19,20 @@ class InvestigationService:
     def __init__(self, adapters: list[BaseAdapter]):
         self._adapters: dict[str, BaseAdapter] = {a.name: a for a in adapters}
 
-    async def run_adapters(
+    def get_active_adapters(
         self, target: Target, adapter_names: list[str] | None = None
-    ) -> list[Finding]:
+    ) -> list[BaseAdapter]:
+        """Return adapters that can handle this target, optionally filtered by name."""
         candidates = list(self._adapters.values())
         if adapter_names is not None:
             candidates = [a for a in candidates if a.name in adapter_names]
+        return [a for a in candidates if a.can_handle(target)]
 
-        active = [a for a in candidates if a.can_handle(target)]
+    async def run_adapters(
+        self, target: Target, adapter_names: list[str] | None = None
+    ) -> list[Finding]:
+        """Run all compatible adapters concurrently and collect findings."""
+        active = self.get_active_adapters(target, adapter_names)
         tasks = [a.run(target) for a in active]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 

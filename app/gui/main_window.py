@@ -233,6 +233,10 @@ class MainWindow(QMainWindow):
         self.findings_panel.load_findings(case.findings)
         self.status_bar.showMessage(f"Active case: {case.name}")
 
+    def _populate_case_detail(self, case: Case) -> None:
+        """Refresh the case detail view inside CasePanel for the given case."""
+        self.case_panel._populate_detail(case)
+
     def _on_new_case_sidebar(self):
         from PySide6.QtWidgets import QInputDialog
         name, ok = QInputDialog.getText(self, "New Case", "Case name:")
@@ -247,7 +251,27 @@ class MainWindow(QMainWindow):
         if not value:
             self.status_bar.showMessage("Please enter a target value.")
             return
-        target = Target(type=target_type, value=value)
+
+        # Persist the target to the active case so findings reference a real target ID
+        if self.current_case is not None:
+            existing = next(
+                (
+                    t for t in self.current_case.targets
+                    if t.type == target_type and t.value == value
+                ),
+                None,
+            )
+            if existing:
+                target = existing
+            else:
+                target = self.case_service.add_target(self.current_case.id, target_type, value)
+                self.current_case = self.case_service.get_case(self.current_case.id)
+                self.case_panel.refresh_cases()
+                self._populate_case_detail(self.current_case)
+        else:
+            # No active case — run without persisting
+            target = Target(type=target_type, value=value)
+
         selected = [n for n, cb in self.adapter_checks.items() if cb.isChecked()]
         self._start_worker(target, adapter_names=selected)
 
@@ -257,7 +281,25 @@ class MainWindow(QMainWindow):
         if not value:
             self.status_bar.showMessage("Please enter a target value.")
             return
-        target = Target(type=target_type, value=value)
+
+        if self.current_case is not None:
+            existing = next(
+                (
+                    t for t in self.current_case.targets
+                    if t.type == target_type and t.value == value
+                ),
+                None,
+            )
+            if existing:
+                target = existing
+            else:
+                target = self.case_service.add_target(self.current_case.id, target_type, value)
+                self.current_case = self.case_service.get_case(self.current_case.id)
+                self.case_panel.refresh_cases()
+                self._populate_case_detail(self.current_case)
+        else:
+            target = Target(type=target_type, value=value)
+
         self._start_worker(target, preset=preset)
 
     def _start_worker(self, target: Target, preset=None, adapter_names=None):
@@ -285,9 +327,18 @@ class MainWindow(QMainWindow):
         self.results_table.setItem(row, 4, QTableWidgetItem(finding.description[:80]))
 
     def _on_investigation_finished(self, findings: list[Finding]):
-        self.status_bar.showMessage(f"Investigation complete — {len(findings)} findings")
         if self.current_case is not None:
-            for f in findings:
-                self.case_service.add_finding(self.current_case.id, f)
-            updated = self.case_service.get_case(self.current_case.id)
-            self.findings_panel.load_findings(updated.findings)
+            added, skipped = self.case_service.add_findings_batch(self.current_case.id, findings)
+            msg = f"Investigation complete — {len(added)} new finding(s)"
+            if skipped:
+                msg += f"  ({skipped} duplicate(s) skipped)"
+            self.status_bar.showMessage(msg)
+            # Reload case and refresh all dependent panels
+            self.current_case = self.case_service.get_case(self.current_case.id)
+            self.findings_panel.load_findings(self.current_case.findings)
+            self.graph_panel.load_case(self.current_case)
+            self.report_panel.load_case(self.current_case)
+        else:
+            self.status_bar.showMessage(
+                f"Investigation complete — {len(findings)} finding(s)  (select a case to save)"
+            )

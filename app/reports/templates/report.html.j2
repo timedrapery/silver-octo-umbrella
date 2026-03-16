@@ -23,6 +23,240 @@
     header { display: flex; justify-content: space-between; align-items: center;
              border-bottom: 2px solid var(--accent); padding-bottom: 16px; margin-bottom: 32px; }
     header h1 { font-size: 28px; color: var(--accent); }
+    header .meta { text-align: right; color: var(--muted); font-size: 13px; line-height: 1.6; }
+    h2 { color: var(--accent); font-size: 18px; margin: 0 0 12px; }
+    h3 { color: var(--text); font-size: 14px; margin: 16px 0 8px; text-transform: uppercase;
+         letter-spacing: 0.05em; opacity: 0.7; }
+    .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .stat-card { background: var(--panel2); border-radius: 8px; padding: 16px; text-align: center; }
+    .stat-card .num { font-size: 32px; font-weight: bold; color: var(--accent); }
+    .stat-card .label { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 16px; font-size: 13px; }
+    th { background: var(--panel2); color: var(--muted); text-align: left; padding: 10px 12px;
+         font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+    td { padding: 10px 12px; border-bottom: 1px solid #333; vertical-align: top; }
+    tr:hover td { background: var(--panel2); }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; color: white; white-space: nowrap; }
+    .badge-INFO { background: var(--info); }
+    .badge-LOW { background: var(--low); }
+    .badge-MEDIUM { background: var(--medium); }
+    .badge-HIGH { background: var(--high); }
+    .badge-CRITICAL { background: var(--critical); }
+    .section { background: var(--panel); border-radius: 8px; padding: 20px; margin-bottom: 24px; }
+    .note-card { background: var(--panel2); border-left: 3px solid var(--accent);
+                 border-radius: 4px; padding: 12px 16px; margin-bottom: 10px; font-size: 13px; }
+    .note-card .note-meta { color: var(--muted); font-size: 11px; margin-top: 6px; }
+    .entity-list { display: flex; flex-wrap: wrap; gap: 8px; }
+    .entity-tag { background: var(--panel2); border: 1px solid #444; border-radius: 4px;
+                  padding: 3px 10px; font-size: 12px; font-family: monospace; color: var(--text); }
+    .entity-group-label { color: var(--muted); font-size: 11px; text-transform: uppercase;
+                          letter-spacing: 0.05em; margin: 12px 0 6px; }
+    .run-row { display: flex; gap: 12px; font-size: 12px; padding: 6px 0; border-bottom: 1px solid #333; align-items: center; }
+    .run-status-COMPLETE { color: #4ade80; }
+    .run-status-FAILED { color: var(--high); }
+    .run-status-SKIPPED { color: var(--muted); }
+    footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 32px;
+             border-top: 1px solid #333; padding-top: 16px; }
+    a { color: var(--accent); }
+    @media print { body { background: white; color: black; } header h1, h2, a { color: #4c3fc7; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>🔍 OSINT Research Platform</h1>
+      <p style="color: var(--muted); margin-top: 4px;">Confidential Intelligence Report</p>
+    </div>
+    <div class="meta">
+      <div><strong>{{ case.name }}</strong></div>
+      <div>Status: {{ case.status.value }}</div>
+      <div>Case ID: {{ case.id[:8] }}…</div>
+      <div>Created: {{ case.created_at.strftime('%Y-%m-%d') if case.created_at.strftime is defined else case.created_at }}</div>
+      <div>Generated: {{ now.strftime('%Y-%m-%d %H:%M UTC') }}</div>
+    </div>
+  </header>
+
+  {# ── Executive Summary ───────────────────────────────────────────────── #}
+  <div class="section">
+    <h2>Executive Summary</h2>
+    {% set severity_counts = {} %}
+    {% for f in case.findings %}
+      {% set _ = severity_counts.update({f.severity.value: (severity_counts.get(f.severity.value, 0) + 1)}) %}
+    {% endfor %}
+    <div class="summary-grid">
+      <div class="stat-card"><div class="num">{{ case.targets|length }}</div><div class="label">Targets</div></div>
+      <div class="stat-card"><div class="num">{{ case.findings|length }}</div><div class="label">Total Findings</div></div>
+      <div class="stat-card"><div class="num" style="color:var(--critical);">{{ severity_counts.get('CRITICAL', 0) }}</div><div class="label">Critical</div></div>
+      <div class="stat-card"><div class="num" style="color:var(--high);">{{ severity_counts.get('HIGH', 0) }}</div><div class="label">High</div></div>
+      <div class="stat-card"><div class="num" style="color:var(--medium);">{{ severity_counts.get('MEDIUM', 0) }}</div><div class="label">Medium</div></div>
+      <div class="stat-card"><div class="num" style="color:var(--low);">{{ severity_counts.get('LOW', 0) }}</div><div class="label">Low</div></div>
+    </div>
+    {% if case.description %}
+    <p style="color: var(--muted); margin-top: 8px;">{{ case.description }}</p>
+    {% endif %}
+  </div>
+
+  {# ── Targets ─────────────────────────────────────────────────────────── #}
+  {% if case.targets %}
+  <div class="section">
+    <h2>Targets ({{ case.targets|length }})</h2>
+    <table>
+      <tr><th>Type</th><th>Value</th><th>Added</th><th>Tags</th></tr>
+      {% for t in case.targets %}
+      <tr>
+        <td><span class="badge badge-INFO">{{ t.type.value }}</span></td>
+        <td style="font-family:monospace;">{{ t.value }}</td>
+        <td>{{ t.created_at.strftime('%Y-%m-%d') if t.created_at.strftime is defined else t.created_at }}</td>
+        <td>{{ t.tags|join(', ') if t.tags else '—' }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+  {% endif %}
+
+  {# ── Analyst Notes ───────────────────────────────────────────────────── #}
+  {% if case.notes %}
+  <div class="section">
+    <h2>Analyst Notes ({{ case.notes|length }})</h2>
+    {% for note in case.notes %}
+    <div class="note-card">
+      {{ note.content }}
+      <div class="note-meta">
+        {{ note.created_at.strftime('%Y-%m-%d %H:%M UTC') if note.created_at.strftime is defined else note.created_at }}
+        {% if note.tags %} · {{ note.tags|join(', ') }}{% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {# ── Discovered Entities ─────────────────────────────────────────────── #}
+  {% set has_entities = entities.ips or entities.subdomains or entities.domains
+                        or entities.organizations or entities.platforms
+                        or entities.software or entities.persons %}
+  {% if has_entities %}
+  <div class="section">
+    <h2>Discovered Entities</h2>
+    {% if entities.ips %}
+    <div class="entity-group-label">IP Addresses ({{ entities.ips|length }})</div>
+    <div class="entity-list">{% for v in entities.ips %}<span class="entity-tag">{{ v }}</span>{% endfor %}</div>
+    {% endif %}
+    {% if entities.subdomains %}
+    <div class="entity-group-label">Subdomains ({{ entities.subdomains|length }})</div>
+    <div class="entity-list">{% for v in entities.subdomains %}<span class="entity-tag">{{ v }}</span>{% endfor %}</div>
+    {% endif %}
+    {% if entities.domains %}
+    <div class="entity-group-label">Domains / Mail Hosts ({{ entities.domains|length }})</div>
+    <div class="entity-list">{% for v in entities.domains %}<span class="entity-tag">{{ v }}</span>{% endfor %}</div>
+    {% endif %}
+    {% if entities.organizations %}
+    <div class="entity-group-label">Organizations</div>
+    <div class="entity-list">{% for v in entities.organizations %}<span class="entity-tag">{{ v }}</span>{% endfor %}</div>
+    {% endif %}
+    {% if entities.platforms %}
+    <div class="entity-group-label">Social Platforms</div>
+    <div class="entity-list">{% for v in entities.platforms %}<span class="entity-tag">{{ v }}</span>{% endfor %}</div>
+    {% endif %}
+    {% if entities.software %}
+    <div class="entity-group-label">Software & Technologies</div>
+    <div class="entity-list">{% for v in entities.software %}<span class="entity-tag">{{ v }}</span>{% endfor %}</div>
+    {% endif %}
+    {% if entities.persons %}
+    <div class="entity-group-label">Persons / Authors</div>
+    <div class="entity-list">{% for v in entities.persons %}<span class="entity-tag">{{ v }}</span>{% endfor %}</div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {# ── Findings by Category ────────────────────────────────────────────── #}
+  {% if case.findings %}
+  {% set finding_types = case.findings|map(attribute='finding_type')|map(attribute='value')|unique|list|sort %}
+  <div class="section">
+    <h2>Findings by Category ({{ case.findings|length }} total)</h2>
+    {% for ftype in finding_types %}
+    {% set type_findings = case.findings|selectattr('finding_type.value','equalto',ftype)|list %}
+    <h3>{{ ftype }} ({{ type_findings|length }})</h3>
+    <table>
+      <tr><th>Severity</th><th>Title</th><th>Adapter</th><th>Description</th><th>Collected</th></tr>
+      {% for f in type_findings|sort(attribute='severity.value') %}
+      <tr>
+        <td><span class="badge badge-{{ f.severity.value }}">{{ f.severity.value }}</span></td>
+        <td><strong>{{ f.title }}</strong></td>
+        <td>{{ f.adapter_name }}</td>
+        <td>{{ f.description[:140] }}{% if f.description|length > 140 %}…{% endif %}</td>
+        <td style="white-space:nowrap;">{{ f.collected_at.strftime('%Y-%m-%d %H:%M') if f.collected_at.strftime is defined else f.collected_at }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {# ── Source Citations ────────────────────────────────────────────────── #}
+  {% set cited = case.findings|selectattr('source_url')|list %}
+  {% if cited %}
+  <div class="section">
+    <h2>Source Citations ({{ cited|length }})</h2>
+    <table>
+      <tr><th>Finding</th><th>Source</th><th>URL</th></tr>
+      {% for f in cited %}
+      <tr>
+        <td>{{ f.title }}</td>
+        <td>{{ f.source_name or '—' }}</td>
+        <td><a href="{{ f.source_url }}">{{ f.source_url }}</a></td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+  {% endif %}
+
+  {# ── Adapter Run Log ─────────────────────────────────────────────────── #}
+  {% if case.adapter_runs %}
+  <div class="section">
+    <h2>Adapter Run Log</h2>
+    {% for run in case.adapter_runs %}
+    <div class="run-row">
+      <span class="run-status-{{ run.status.value }}" style="width:70px;">{{ run.status.value }}</span>
+      <span style="width:90px;font-weight:bold;">{{ run.adapter_name }}</span>
+      <span style="color:var(--muted);">{{ run.finding_count }} finding(s)</span>
+      <span style="color:var(--muted);">{{ '%.1f'|format(run.duration_seconds) }}s</span>
+      {% if run.error_message %}
+      <span style="color:var(--high);">{{ run.error_message[:80] }}</span>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <footer>
+    OSINT Research Platform — Confidential — {{ case.name }} — Case {{ case.id[:8] }}
+  </footer>
+</body>
+</html>
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OSINT Report — {{ case.name }}</title>
+  <style>
+    :root {
+      --bg: #0f0f1a;
+      --panel: #1e1e2e;
+      --panel2: #2d2d3f;
+      --accent: #7c6af7;
+      --text: #e2e8f0;
+      --muted: #9ca3af;
+      --info: #6b7280;
+      --low: #3b82f6;
+      --medium: #f59e0b;
+      --high: #ef4444;
+      --critical: #dc2626;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: "Segoe UI", sans-serif; padding: 32px; }
+    header { display: flex; justify-content: space-between; align-items: center;
+             border-bottom: 2px solid var(--accent); padding-bottom: 16px; margin-bottom: 32px; }
+    header h1 { font-size: 28px; color: var(--accent); }
     header .meta { text-align: right; color: var(--muted); font-size: 13px; }
     h2 { color: var(--accent); font-size: 18px; margin: 24px 0 12px; }
     .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 16px; margin-bottom: 24px; }

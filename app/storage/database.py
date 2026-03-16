@@ -1,8 +1,21 @@
 import sqlite3
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 
-from app.models.case import Case, Target, Finding, Note, Evidence, TargetType, FindingType, Severity, CaseStatus
+from app.models.case import (
+    AdapterRun,
+    AdapterRunStatus,
+    Case,
+    CaseStatus,
+    Evidence,
+    Finding,
+    FindingType,
+    Note,
+    Severity,
+    Target,
+    TargetType,
+)
 
 
 class Database:
@@ -66,6 +79,18 @@ class Database:
                 file_path TEXT,
                 description TEXT,
                 collected_at TEXT
+            );
+            CREATE TABLE IF NOT EXISTS adapter_runs (
+                id TEXT PRIMARY KEY,
+                case_id TEXT NOT NULL,
+                target_id TEXT NOT NULL,
+                adapter_name TEXT NOT NULL,
+                status TEXT NOT NULL,
+                started_at TEXT,
+                completed_at TEXT,
+                finding_count INTEGER DEFAULT 0,
+                duration_seconds REAL DEFAULT 0.0,
+                error_message TEXT DEFAULT ''
             );
         """)
         self.conn.commit()
@@ -172,7 +197,7 @@ class Database:
         rows = cur.execute("SELECT * FROM cases ORDER BY created_at DESC").fetchall()
         return [self._build_case(dict(r)) for r in rows]
 
-    _CHILD_TABLES = ("targets", "findings", "notes", "evidence")
+    _CHILD_TABLES = ("targets", "findings", "notes", "evidence", "adapter_runs")
 
     def delete_case(self, case_id: str):
         cur = self.conn.cursor()
@@ -185,6 +210,60 @@ class Database:
         cur = self.conn.cursor()
         rows = cur.execute("SELECT * FROM findings WHERE case_id = ?", (case_id,)).fetchall()
         return [self._row_to_finding(dict(r)) for r in rows]
+
+    def update_case_timestamp(self, case_id: str) -> None:
+        """Update only the updated_at column without rewriting the full case."""
+        cur = self.conn.cursor()
+        cur.execute(
+            "UPDATE cases SET updated_at = ? WHERE id = ?",
+            (datetime.now(timezone.utc).isoformat(), case_id),
+        )
+        self.conn.commit()
+
+    def save_adapter_run(self, run: AdapterRun) -> None:
+        cur = self.conn.cursor()
+        cur.execute(
+            """INSERT OR REPLACE INTO adapter_runs
+               (id, case_id, target_id, adapter_name, status, started_at,
+                completed_at, finding_count, duration_seconds, error_message)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                run.id,
+                run.case_id,
+                run.target_id,
+                run.adapter_name,
+                run.status.value,
+                run.started_at.isoformat(),
+                run.completed_at.isoformat() if run.completed_at else None,
+                run.finding_count,
+                run.duration_seconds,
+                run.error_message,
+            ),
+        )
+        self.conn.commit()
+
+    def get_adapter_runs_for_case(self, case_id: str) -> list[AdapterRun]:
+        cur = self.conn.cursor()
+        rows = cur.execute(
+            "SELECT * FROM adapter_runs WHERE case_id = ? ORDER BY started_at ASC", (case_id,)
+        ).fetchall()
+        return [self._row_to_adapter_run(dict(r)) for r in rows]
+
+    @staticmethod
+    def _row_to_adapter_run(row: dict) -> AdapterRun:
+        completed_at = row.get("completed_at")
+        return AdapterRun(
+            id=row["id"],
+            case_id=row["case_id"],
+            target_id=row["target_id"],
+            adapter_name=row["adapter_name"],
+            status=AdapterRunStatus(row["status"]),
+            started_at=row["started_at"],
+            completed_at=completed_at if completed_at else None,
+            finding_count=row["finding_count"] or 0,
+            duration_seconds=row["duration_seconds"] or 0.0,
+            error_message=row["error_message"] or "",
+        )
 
     def _build_case(self, row: dict) -> Case:
         cur = self.conn.cursor()
@@ -233,6 +312,7 @@ class Database:
             findings=findings,
             notes=notes,
             evidence=evidence,
+            adapter_runs=self.get_adapter_runs_for_case(case_id),
         )
 
     def _row_to_target(self, row: dict) -> Target:

@@ -1,15 +1,19 @@
 import asyncio
+import logging
+import time
 
 from PySide6.QtCore import QThread, Signal
 
 from app.models.case import Finding, InvestigationPreset, Target
-from app.services.investigation_service import InvestigationService
+from app.services.investigation_service import InvestigationService, PRESET_ADAPTERS
+
+logger = logging.getLogger(__name__)
 
 
 class InvestigationWorker(QThread):
-    finding_found = Signal(object)
-    progress = Signal(int, str)
-    finished = Signal(list)
+    finding_found = Signal(object)   # Finding
+    progress = Signal(int, str)      # (percent, message)
+    finished = Signal(list)          # list[Finding]
     error = Signal(str)
 
     def __init__(
@@ -25,31 +29,55 @@ class InvestigationWorker(QThread):
         self.preset = preset
         self.adapter_names = adapter_names
 
-    def run(self):
+    def run(self) -> None:
         try:
             asyncio.run(self._run_investigation())
         except Exception as exc:
             self.error.emit(str(exc))
 
-    async def _run_investigation(self):
-        self.progress.emit(10, "Starting investigation...")
-        try:
-            if self.preset is not None:
-                self.progress.emit(30, f"Running preset: {self.preset.value}")
-                findings = await self.investigation_service.run_preset(self.target, self.preset)
-            else:
-                self.progress.emit(30, "Running selected adapters...")
-                findings = await self.investigation_service.run_adapters(
-                    self.target, adapter_names=self.adapter_names
+    async def _run_investigation(self) -> None:
+        self.progress.emit(5, "Resolving adapters…")
+
+        # Determine which adapter names to use
+        if self.preset is not None:
+            effective_names = PRESET_ADAPTERS.get(self.preset, [])
+        else:
+            effective_names = self.adapter_names
+
+        adapters = self.investigation_service.get_active_adapters(
+            self.target, effective_names
+        )
+
+        if not adapters:
+            self.progress.emit(100, "No adapters match this target type.")
+            self.finished.emit([])
+            return
+
+        total = len(adapters)
+        all_findings: list[Finding] = []
+
+        for idx, adapter in enumerate(adapters):
+            base_pct = 10 + int(idx / total * 85)
+            self.progress.emit(base_pct, f"Running {adapter.name}…")
+            t0 = time.monotonic()
+            try:
+                findings = await adapter.run(self.target)
+                duration = time.monotonic() - t0
+                all_findings.extend(findings)
+                for f in findings:
+                    self.finding_found.emit(f)
+                done_pct = 10 + int((idx + 1) / total * 85)
+                self.progress.emit(
+                    done_pct,
+                    f"{adapter.name}: {len(findings)} finding(s) in {duration:.1f}s",
                 )
+            except Exception as exc:
+                duration = time.monotonic() - t0
+                logger.warning("Adapter %r failed after %.1fs: %s", adapter.name, duration, exc)
+                done_pct = 10 + int((idx + 1) / total * 85)
+                self.progress.emit(done_pct, f"{adapter.name}: failed — {exc}")
 
-            total = len(findings)
-            for i, finding in enumerate(findings):
-                self.finding_found.emit(finding)
-                pct = 30 + int((i + 1) / max(total, 1) * 65)
-                self.progress.emit(pct, f"Found: {finding.title}")
-
-            self.progress.emit(100, f"Complete — {total} findings")
-            self.finished.emit(findings)
-        except Exception as exc:
-            self.error.emit(str(exc))
+        self.progress.emit(
+            100, f"Done — {len(all_findings)} finding(s) from {total} adapter(s)"
+        )
+        self.finished.emit(all_findings)

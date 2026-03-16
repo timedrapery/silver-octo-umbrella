@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class TargetType(str, Enum):
@@ -89,6 +89,29 @@ class Evidence(BaseModel):
     collected_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
+class AdapterRunStatus(str, Enum):
+    PENDING = "PENDING"
+    RUNNING = "RUNNING"
+    COMPLETE = "COMPLETE"
+    FAILED = "FAILED"
+    SKIPPED = "SKIPPED"
+
+
+class AdapterRun(BaseModel):
+    """Records execution metadata for a single adapter run within an investigation."""
+
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    case_id: str
+    target_id: str
+    adapter_name: str
+    status: AdapterRunStatus = AdapterRunStatus.PENDING
+    started_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    completed_at: Optional[datetime] = None
+    finding_count: int = 0
+    duration_seconds: float = 0.0
+    error_message: str = ""
+
+
 class Case(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     name: str
@@ -101,3 +124,4 @@ class Case(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     status: CaseStatus = CaseStatus.OPEN
+    adapter_runs: list[AdapterRun] = Field(default_factory=list)

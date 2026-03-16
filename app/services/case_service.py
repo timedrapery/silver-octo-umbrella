@@ -43,7 +43,41 @@ class CaseService:
         return note
 
     def add_finding(self, case_id: str, finding: Finding):
-        case = self.db.load_case(case_id)
-        case.findings.append(finding)
-        case.updated_at = datetime.now(timezone.utc)
-        self.db.save_case(case)
+        """Add a single finding.  Prefer add_findings_batch for bulk inserts."""
+        self.add_findings_batch(case_id, [finding])
+
+    def add_findings_batch(
+        self, case_id: str, findings: list[Finding]
+    ) -> tuple[list[Finding], int]:
+        """
+        Add multiple findings to a case, skipping semantic duplicates.
+
+        Two findings are considered duplicates when they share the same
+        (adapter_name, finding_type, title) within the same case.
+
+        Returns:
+            (added_findings, skipped_count)
+        """
+        existing = self.db.get_findings_for_case(case_id)
+        # Build a set of (adapter_name, finding_type, title) keys already stored
+        existing_keys: set[tuple[str, str, str]] = {
+            (f.adapter_name, f.finding_type.value, f.title) for f in existing
+        }
+
+        to_add: list[Finding] = []
+        skipped = 0
+        for f in findings:
+            key = (f.adapter_name, f.finding_type.value, f.title)
+            if key in existing_keys:
+                skipped += 1
+            else:
+                to_add.append(f)
+                existing_keys.add(key)  # prevent within-batch duplicates too
+
+        for f in to_add:
+            self.db.save_finding(f, case_id)
+
+        if to_add:
+            self.db.update_case_timestamp(case_id)
+
+        return to_add, skipped
